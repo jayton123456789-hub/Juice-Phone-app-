@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { HiArrowLeft, HiPencil, HiLogout } from 'react-icons/hi'
+import { HiArrowLeft, HiPencil, HiLogout, HiTrash } from 'react-icons/hi'
 import { useUser } from '../hooks/useUser'
+import { clearAllData } from '../utils/storage'
 import './Profile.css'
 
 interface ProfileProps {
@@ -36,6 +37,14 @@ export default function Profile({ onClose }: ProfileProps) {
   const handleSignOut = () => {
     if (confirm('Are you sure you want to sign out?')) {
       signOut()
+    }
+  }
+
+  const handleClearData = () => {
+    if (confirm('⚠️ WARNING: This will delete ALL your data including:\n\n• Favorites\n• Playlists\n• Recently played\n• Settings\n• Account info\n\nThis cannot be undone!\n\nAre you sure?')) {
+      clearAllData()
+      signOut()
+      window.location.reload()
     }
   }
 
@@ -146,6 +155,12 @@ export default function Profile({ onClose }: ProfileProps) {
             <span className="user-id">{user.id.slice(0, 8)}...</span>
           </div>
         </div>
+
+        {/* Clear Data Button */}
+        <button className="clear-data-btn" onClick={handleClearData}>
+          <HiTrash />
+          Clear All Data
+        </button>
 
         {/* Sign Out Button */}
         <button className="signout-btn" onClick={handleSignOut}>

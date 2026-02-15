@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { HiHome, HiSearch, HiHeart } from 'react-icons/hi'
 import Home from './pages/Home'
@@ -7,14 +7,21 @@ import Library from './pages/Library'
 import Player from './pages/Player'
 import Auth from './pages/Auth'
 import Profile from './pages/Profile'
+import MiniPlayer from './components/MiniPlayer'
+import QueuePanel from './components/QueuePanel'
 import { useAudioPlayer } from './hooks/useAudioPlayer'
 import { useUser } from './hooks/useUser'
+import { checkStorageVersion } from './utils/storage'
 import { Song } from './types'
 import './App.css'
+
+// Check storage version on load
+checkStorageVersion()
 
 function App() {
   const [showPlayer, setShowPlayer] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
+  const [showQueue, setShowQueue] = useState(false)
   const [allSongs, setAllSongs] = useState<Song[]>([])
   
   const { user, isLoading, isAuthenticated } = useUser()
@@ -31,7 +38,9 @@ function App() {
     playNext,
     playPrevious,
     seek,
-    setAudioVolume
+    setAudioVolume,
+    setQueue,
+    removeFromQueue
   } = useAudioPlayer()
 
   // Prevent right-click context menu (mobile-like behavior)
@@ -52,17 +61,73 @@ function App() {
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
-  const handleSongSelect = (song: Song) => {
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!currentSong) return
+      
+      switch (e.key) {
+        case 'MediaPlayPause':
+        case ' ':
+          if (e.target === document.body) {
+            e.preventDefault()
+            togglePlay()
+          }
+          break
+        case 'MediaTrackNext':
+        case 'ArrowRight':
+          if (e.ctrlKey || e.metaKey) {
+            playNext()
+          }
+          break
+        case 'MediaTrackPrevious':
+        case 'ArrowLeft':
+          if (e.ctrlKey || e.metaKey) {
+            playPrevious()
+          }
+          break
+        case 'm':
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault()
+            setAudioVolume(volume === 0 ? 80 : 0)
+          }
+          break
+        case 'Escape':
+          if (showPlayer) setShowPlayer(false)
+          if (showQueue) setShowQueue(false)
+          break
+      }
+    }
+    
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [currentSong, togglePlay, playNext, playPrevious, volume, setAudioVolume, showPlayer, showQueue])
+
+  const handleSongSelect = useCallback((song: Song) => {
     playSongWithQueue(song, allSongs.length > 0 ? allSongs : [song])
     setShowPlayer(true)
-  }
+  }, [allSongs, playSongWithQueue])
+
+  const handleRadioPlay = useCallback(async () => {
+    const { juiceApi } = await import('./api/juiceApi')
+    const songs = await juiceApi.getRadioSongs(20)
+    if (songs.length > 0) {
+      setQueue(songs, 0)
+      setShowPlayer(true)
+    }
+  }, [setQueue])
 
   const handleClosePlayer = () => {
     setShowPlayer(false)
   }
 
-  const handleProfileClick = () => {
-    setShowProfile(!showProfile)
+  const handleOpenFullPlayer = () => {
+    setShowPlayer(true)
+  }
+
+  const handleQueueSongSelect = (index: number) => {
+    // This would need to be implemented in the hook
+    console.log('Select queue item:', index)
   }
 
   // Show auth screen if not authenticated
@@ -89,6 +154,8 @@ function App() {
     )
   }
 
+  const showMiniPlayer = currentSong && !showPlayer
+
   return (
     <div className="app">
       <div className="phone-frame">
@@ -111,6 +178,7 @@ function App() {
               currentTime={currentTime}
               duration={duration}
               volume={volume}
+              queueLength={queue.length}
               hasNext={currentIndex < queue.length - 1}
               hasPrevious={currentIndex > 0}
               onTogglePlay={togglePlay}
@@ -119,14 +187,16 @@ function App() {
               onSeek={seek}
               onVolumeChange={setAudioVolume}
               onClose={handleClosePlayer}
+              onOpenQueue={() => setShowQueue(true)}
             />
           ) : (
             <Router>
               <Routes>
                 <Route path="/" element={
                   <Home 
-                    onSongSelect={handleSongSelect} 
-                    onProfileClick={handleProfileClick}
+                    onSongSelect={handleSongSelect}
+                    onRadioPlay={handleRadioPlay}
+                    onProfileClick={() => setShowProfile(true)}
                     onSongsLoaded={setAllSongs}
                     user={user}
                   />
@@ -148,6 +218,29 @@ function App() {
             </Router>
           )}
         </div>
+
+        {/* Mini Player */}
+        {showMiniPlayer && (
+          <MiniPlayer
+            song={currentSong}
+            isPlaying={isPlaying}
+            onOpenFull={handleOpenFullPlayer}
+            onTogglePlay={togglePlay}
+            onNext={playNext}
+            onPrevious={playPrevious}
+          />
+        )}
+
+        {/* Queue Panel */}
+        <QueuePanel
+          queue={queue}
+          currentIndex={currentIndex}
+          isOpen={showQueue}
+          onClose={() => setShowQueue(false)}
+          onSongSelect={handleQueueSongSelect}
+          onClearQueue={() => setQueue([], -1)}
+          onRemoveSong={removeFromQueue}
+        />
 
         {/* Window controls for desktop */}
         <div className="window-controls">

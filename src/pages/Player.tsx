@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { 
   HiChevronDown, HiPlay, HiPause, HiHeart,
-  HiQueueList, HiVolumeUp, HiVolumeOff
+  HiQueueList
 } from 'react-icons/hi2'
+import { FiVolume2, FiVolumeX } from 'react-icons/fi'
 import { FiShuffle, FiRepeat, FiSkipBack, FiSkipForward } from 'react-icons/fi'
 import { Song } from '../types'
 import './Player.css'
@@ -13,6 +14,7 @@ interface PlayerProps {
   currentTime: number
   duration: number
   volume: number
+  queueLength: number
   hasNext: boolean
   hasPrevious: boolean
   onTogglePlay: () => void
@@ -21,6 +23,7 @@ interface PlayerProps {
   onSeek: (time: number) => void
   onVolumeChange: (volume: number) => void
   onClose: () => void
+  onOpenQueue: () => void
 }
 
 export default function Player({
@@ -29,6 +32,7 @@ export default function Player({
   currentTime,
   duration,
   volume,
+  queueLength,
   hasNext,
   hasPrevious,
   onTogglePlay,
@@ -36,7 +40,8 @@ export default function Player({
   onPrevious,
   onSeek,
   onVolumeChange,
-  onClose
+  onClose,
+  onOpenQueue
 }: PlayerProps) {
   const [isFavorite, setIsFavorite] = useState(false)
   const [showLyrics, setShowLyrics] = useState(false)
@@ -101,8 +106,9 @@ export default function Player({
           <HiChevronDown />
         </button>
         <span className="now-playing">Now Playing</span>
-        <button className="header-btn">
+        <button className="header-btn" onClick={onOpenQueue}>
           <HiQueueList />
+          {queueLength > 0 && <span className="queue-badge">{queueLength}</span>}
         </button>
       </div>
 
@@ -208,7 +214,7 @@ export default function Player({
             className="volume-btn"
             onClick={() => setShowVolume(!showVolume)}
           >
-            {volume === 0 ? <HiVolumeOff /> : <HiVolumeUp />}
+            {volume === 0 ? <FiVolumeX /> : <FiVolume2 />}
           </button>
           {showVolume && (
             <div className="volume-slider-popup">

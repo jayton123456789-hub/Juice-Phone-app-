@@ -1,19 +1,20 @@
 import { useState, useEffect } from 'react'
-import { HiPlay, HiFire, HiClock, HiUser } from 'react-icons/hi'
+import { HiPlay, HiFire, HiClock } from 'react-icons/hi'
 import { juiceApi } from '../api/juiceApi'
 import { Song, User } from '../types'
 import './Home.css'
 
 interface HomeProps {
   onSongSelect: (song: Song) => void
+  onRadioPlay: () => void
   onProfileClick: () => void
   onSongsLoaded: (songs: Song[]) => void
   user: User | null
 }
 
-export default function Home({ onSongSelect, onProfileClick, onSongsLoaded, user }: HomeProps) {
+export default function Home({ onSongSelect, onRadioPlay, onProfileClick, onSongsLoaded, user }: HomeProps) {
   const [songs, setSongs] = useState<Song[]>([])
-  const [popularSongs, setPopularSongs] = useState<Song[]>([])
+  const [, setPopularSongs] = useState<Song[]>([])
   const [recentlyPlayed, setRecentlyPlayed] = useState<Song[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<any>(null)
@@ -100,7 +101,7 @@ export default function Home({ onSongSelect, onProfileClick, onSongsLoaded, user
             title="Radio" 
             subtitle="Random songs"
             gradient="linear-gradient(135deg, #ff006e, #ff4d00)"
-            onClick={() => loadRadio()}
+            onClick={onRadioPlay}
           />
           <QuickCard 
             icon={<HiClock />} 
@@ -181,13 +182,6 @@ export default function Home({ onSongSelect, onProfileClick, onSongsLoaded, user
       </div>
     </div>
   )
-
-  async function loadRadio() {
-    const song = await juiceApi.getRadioSong()
-    if (song) {
-      onSongSelect(song)
-    }
-  }
 }
 
 function QuickCard({ icon, title, subtitle, gradient, onClick }: { 

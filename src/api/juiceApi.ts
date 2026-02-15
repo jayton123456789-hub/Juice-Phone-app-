@@ -1,5 +1,6 @@
 import axios from 'axios'
-import { Song, QueueItem } from '../types'
+import { Song } from '../types'
+import { getCachedCover, cacheCover } from '../utils/storage'
 
 const API_BASE = 'https://juicewrldapi.com/juicewrld'
 
@@ -8,20 +9,35 @@ const api = axios.create({
   timeout: 15000
 })
 
+// Get cover art URL for a song path
+const getCoverArtUrl = (path?: string): string => {
+  if (!path) return ''
+  return `${API_BASE}/files/cover-art/?path=${encodeURIComponent(path)}`
+}
+
 // Transform API response to our Song type
 const transformSong = (data: any): Song => {
-  const path = data.path || data.song?.path
-  const hasAudio = !!path && path.endsWith('.mp3')
+  const path = data.path || data.song?.path || data.file_path
+  const hasAudio = !!path && (path.endsWith('.mp3') || path.endsWith('.wav') || path.endsWith('.m4a'))
+  const songId = String(data.id || data.public_id || data.song?.id || Math.random())
+  
+  // Try to get cached cover first
+  let coverArt = data.image_url || data.song?.image_url || ''
+  
+  // If no cover in data but has path, generate cover art URL
+  if (!coverArt && path) {
+    coverArt = getCoverArtUrl(path)
+  }
   
   return {
-    id: String(data.id || data.public_id || Math.random()),
-    title: data.name || data.title || 'Unknown Title',
-    artist: data.credited_artists || data.song?.credited_artists || 'Juice WRLD',
-    album: data.era?.name || data.song?.era?.name || 'Unknown Album',
-    coverArt: data.image_url || data.song?.image_url || '',
+    id: songId,
+    title: data.name || data.title || data.song?.name || 'Unknown Title',
+    artist: data.credited_artists || data.song?.credited_artists || data.artist || 'Juice WRLD',
+    album: data.era?.name || data.song?.era?.name || data.album || 'Unknown Album',
+    coverArt: coverArt,
     audioUrl: hasAudio ? `${API_BASE}/files/download/?path=${encodeURIComponent(path)}` : undefined,
     path: path,
-    duration: parseDuration(data.length || data.song?.length),
+    duration: parseDuration(data.length || data.song?.length || data.duration),
     lyrics: data.lyrics || data.song?.lyrics || '',
     hasLyrics: !!(data.lyrics || data.song?.lyrics),
     isFavorite: false
@@ -29,12 +45,37 @@ const transformSong = (data: any): Song => {
 }
 
 // Parse duration string like "3:59" to seconds
-const parseDuration = (duration: string): number => {
+const parseDuration = (duration: string | number): number => {
+  if (typeof duration === 'number') return duration
   if (!duration) return 0
   const parts = duration.split(':').map(Number)
   if (parts.length === 2) return parts[0] * 60 + parts[1]
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
   return 0
+}
+
+// Fetch cover art with fallback
+const fetchCoverArt = async (song: Song): Promise<string> => {
+  if (!song.path) return ''
+  
+  // Check cache first
+  const cached = getCachedCover(song.id)
+  if (cached) return cached
+  
+  const coverUrl = getCoverArtUrl(song.path)
+  
+  // Try to fetch and verify the cover exists
+  try {
+    const response = await fetch(coverUrl, { method: 'HEAD' })
+    if (response.ok) {
+      cacheCover(song.id, coverUrl)
+      return coverUrl
+    }
+  } catch (e) {
+    console.log('Cover art not available for:', song.title)
+  }
+  
+  return ''
 }
 
 export const juiceApi = {
@@ -48,8 +89,20 @@ export const juiceApi = {
       const results = response.data.results || response.data || []
       const count = response.data.count || results.length
       
+      const songs = results.map(transformSong)
+      
+      // Fetch cover art for all songs
+      const songsWithCovers = await Promise.all(
+        songs.map(async (song: Song) => {
+          if (!song.coverArt && song.path) {
+            song.coverArt = await fetchCoverArt(song)
+          }
+          return song
+        })
+      )
+      
       return {
-        songs: results.map(transformSong),
+        songs: songsWithCovers,
         count,
         hasMore: !!response.data.next
       }
@@ -67,8 +120,20 @@ export const juiceApi = {
       })
       const results = response.data.results || response.data || []
       
+      const songs = results.map(transformSong)
+      
+      // Fetch cover art
+      const songsWithCovers = await Promise.all(
+        songs.map(async (song: Song) => {
+          if (!song.coverArt && song.path) {
+            song.coverArt = await fetchCoverArt(song)
+          }
+          return song
+        })
+      )
+      
       return {
-        songs: results.map(transformSong),
+        songs: songsWithCovers,
         count: response.data.count || results.length,
         hasMore: !!response.data.next
       }
@@ -86,7 +151,11 @@ export const juiceApi = {
   async getSong(id: string): Promise<Song | null> {
     try {
       const response = await api.get(`/songs/${id}/`)
-      return transformSong(response.data)
+      const song = transformSong(response.data)
+      if (!song.coverArt && song.path) {
+        song.coverArt = await fetchCoverArt(song)
+      }
+      return song
     } catch (error) {
       console.log('Get song error:', error)
       return null
@@ -97,7 +166,11 @@ export const juiceApi = {
   async getRadioSong(): Promise<Song | null> {
     try {
       const response = await api.get('/radio/random/')
-      return transformSong(response.data)
+      const song = transformSong(response.data)
+      if (!song.coverArt && song.path) {
+        song.coverArt = await fetchCoverArt(song)
+      }
+      return song
     } catch (error) {
       console.log('Radio error:', error)
       const mock = getMockSongs()
@@ -105,22 +178,30 @@ export const juiceApi = {
     }
   },
 
-  // Get cover art URL for a song
-  getCoverArtUrl(path: string): string {
-    if (!path) return ''
-    return `${API_BASE}/files/cover-art/?path=${encodeURIComponent(path)}`
-  },
-
-  // Stream audio URL
-  getAudioUrl(path: string): string {
-    if (!path) return ''
-    return `${API_BASE}/files/download/?path=${encodeURIComponent(path)}`
+  // Get multiple radio songs for queue
+  async getRadioSongs(count: number = 10): Promise<Song[]> {
+    const songs: Song[] = []
+    for (let i = 0; i < count; i++) {
+      const song = await this.getRadioSong()
+      if (song) songs.push(song)
+    }
+    return songs
   },
 
   // Get stats
   async getStats(): Promise<any> {
     try {
       const response = await api.get('/stats/')
+      return response.data
+    } catch (error) {
+      return null
+    }
+  },
+
+  // Get file info (for checking if file has audio/cover)
+  async getFileInfo(path: string): Promise<any> {
+    try {
+      const response = await api.get('/files/info/', { params: { path } })
       return response.data
     } catch (error) {
       return null

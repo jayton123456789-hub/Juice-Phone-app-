@@ -1,16 +1,20 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Song, QueueItem } from '../types'
+import { Song } from '../types'
+import { loadQueue, saveQueue, getSettings, saveSettings } from '../utils/storage'
 
 export function useAudioPlayer() {
   const [currentSong, setCurrentSong] = useState<Song | null>(null)
-  const [queue, setQueue] = useState<QueueItem[]>([])
+  const [queue, setQueueState] = useState<Song[]>([])
   const [currentIndex, setCurrentIndex] = useState(-1)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
-  const [volume, setVolume] = useState(80)
+  const [volume, setVolume] = useState(getSettings().volume)
+  const [isShuffle, setIsShuffle] = useState(false)
+  const [isRepeat, setIsRepeat] = useState(false)
   
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Initialize audio element
   useEffect(() => {
@@ -18,33 +22,78 @@ export function useAudioPlayer() {
     audioRef.current = audio
     audio.volume = volume / 100
 
-    audio.addEventListener('timeupdate', () => setCurrentTime(audio.currentTime))
-    audio.addEventListener('loadedmetadata', () => setDuration(audio.duration))
-    audio.addEventListener('ended', handleEnded)
-    audio.addEventListener('play', () => setIsPlaying(true))
-    audio.addEventListener('pause', () => setIsPlaying(false))
-    audio.addEventListener('error', (e) => {
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
+    const handleLoadedMetadata = () => setDuration(audio.duration || 0)
+    const handleEnded = () => handleSongEnded()
+    const handlePlay = () => setIsPlaying(true)
+    const handlePause = () => setIsPlaying(false)
+    const handleError = (e: ErrorEvent) => {
       console.error('Audio error:', e)
       setIsPlaying(false)
-    })
+    }
+
+    audio.addEventListener('timeupdate', handleTimeUpdate)
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata)
+    audio.addEventListener('ended', handleEnded)
+    audio.addEventListener('play', handlePlay)
+    audio.addEventListener('pause', handlePause)
+    audio.addEventListener('error', handleError as EventListener)
+
+    // Load saved queue
+    const savedQueue = loadQueue()
+    if (savedQueue && savedQueue.queue.length > 0) {
+      setQueueState(savedQueue.queue)
+      setCurrentIndex(savedQueue.currentIndex)
+      setCurrentSong(savedQueue.queue[savedQueue.currentIndex])
+    }
 
     return () => {
-      audio.removeEventListener('timeupdate', () => setCurrentTime(audio.currentTime))
-      audio.removeEventListener('loadedmetadata', () => setDuration(audio.duration))
+      audio.removeEventListener('timeupdate', handleTimeUpdate)
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
       audio.removeEventListener('ended', handleEnded)
+      audio.removeEventListener('play', handlePlay)
+      audio.removeEventListener('pause', handlePause)
+      audio.removeEventListener('error', handleError as EventListener)
       audio.pause()
     }
   }, [])
 
+  // Save queue when it changes
+  useEffect(() => {
+    if (queue.length > 0) {
+      saveQueue(queue, currentIndex)
+    }
+  }, [queue, currentIndex])
+
   // Handle song ended - play next
-  const handleEnded = useCallback(() => {
-    if (currentIndex < queue.length - 1) {
-      playNext()
+  const handleSongEnded = useCallback(() => {
+    if (isRepeat && audioRef.current) {
+      audioRef.current.currentTime = 0
+      audioRef.current.play().catch(console.error)
+    } else if (currentIndex < queue.length - 1) {
+      const nextIndex = currentIndex + 1
+      setCurrentIndex(nextIndex)
+      const nextSong = queue[nextIndex]
+      if (nextSong && audioRef.current) {
+        audioRef.current.src = nextSong.audioUrl || ''
+        audioRef.current.load()
+        setCurrentSong(nextSong)
+        audioRef.current.play().catch(console.error)
+      }
     } else {
       setIsPlaying(false)
       setCurrentTime(0)
     }
-  }, [currentIndex, queue])
+  }, [currentIndex, queue, isRepeat])
+
+  // Set queue directly
+  const setQueue = useCallback((songs: Song[], startIndex: number = 0) => {
+    setQueueState(songs)
+    setCurrentIndex(startIndex)
+    if (songs[startIndex]) {
+      playSong(songs[startIndex], true)
+    }
+  }, [])
 
   // Play a specific song
   const playSong = useCallback((song: Song, autoPlay: boolean = true) => {
@@ -55,7 +104,6 @@ export function useAudioPlayer() {
     // If song has no audio URL, we can't play it
     if (!song.audioUrl) {
       console.warn('No audio URL for song:', song.title)
-      // Still set it as current for display purposes
       setCurrentSong(song)
       setIsPlaying(false)
       return
@@ -87,12 +135,9 @@ export function useAudioPlayer() {
   const playSongWithQueue = useCallback((song: Song, allSongs: Song[] = []) => {
     // Create queue from all songs starting from this one
     const songIndex = allSongs.findIndex(s => s.id === song.id)
-    const queueSongs = allSongs.slice(songIndex).map((s, i) => ({
-      ...s,
-      queueId: `${s.id}-${Date.now()}-${i}`
-    }))
+    const queueSongs = allSongs.slice(Math.max(0, songIndex))
     
-    setQueue(queueSongs)
+    setQueueState(queueSongs)
     setCurrentIndex(0)
     playSong(song)
   }, [playSong])
@@ -119,12 +164,21 @@ export function useAudioPlayer() {
 
   // Play previous song
   const playPrevious = useCallback(() => {
+    // If more than 3 seconds in, restart song
+    if (currentTime > 3) {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0
+      }
+      setCurrentTime(0)
+      return
+    }
+    
     if (currentIndex > 0) {
       const prevIndex = currentIndex - 1
       setCurrentIndex(prevIndex)
       playSong(queue[prevIndex])
     }
-  }, [currentIndex, queue, playSong])
+  }, [currentIndex, queue, playSong, currentTime])
 
   // Seek to position
   const seek = useCallback((time: number) => {
@@ -138,30 +192,52 @@ export function useAudioPlayer() {
     if (!audioRef.current) return
     audioRef.current.volume = vol / 100
     setVolume(vol)
+    saveSettings({ volume: vol })
   }, [])
 
   // Add to queue
   const addToQueue = useCallback((song: Song) => {
-    setQueue(prev => [...prev, { ...song, queueId: `${song.id}-${Date.now()}` }])
+    setQueueState(prev => [...prev, song])
   }, [])
+
+  // Remove from queue
+  const removeFromQueue = useCallback((index: number) => {
+    setQueueState(prev => {
+      const newQueue = prev.filter((_, i) => i !== index)
+      // Adjust current index if needed
+      if (index < currentIndex) {
+        setCurrentIndex(currentIndex - 1)
+      }
+      return newQueue
+    })
+  }, [currentIndex])
 
   // Clear queue
   const clearQueue = useCallback(() => {
-    setQueue([])
+    setQueueState([])
     setCurrentIndex(-1)
-  }, [])
+    if (!isPlaying) {
+      setCurrentSong(null)
+    }
+  }, [isPlaying])
 
   // Shuffle queue
   const shuffleQueue = useCallback(() => {
-    setQueue(prev => {
-      const shuffled = [...prev]
-      for (let i = shuffled.length - 1; i > 0; i--) {
+    setQueueState(prev => {
+      const current = prev[currentIndex]
+      const rest = prev.filter((_, i) => i !== currentIndex)
+      
+      // Shuffle the rest
+      for (let i = rest.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+        [rest[i], rest[j]] = [rest[j], rest[i]]
       }
-      return shuffled
+      
+      // Put current at beginning
+      return current ? [current, ...rest] : rest
     })
-  }, [])
+    setCurrentIndex(0)
+  }, [currentIndex])
 
   return {
     currentSong,
@@ -171,6 +247,8 @@ export function useAudioPlayer() {
     currentTime,
     duration,
     volume,
+    isShuffle,
+    isRepeat,
     playSong,
     playSongWithQueue,
     togglePlay,
@@ -179,8 +257,12 @@ export function useAudioPlayer() {
     seek,
     setAudioVolume,
     addToQueue,
+    removeFromQueue,
     clearQueue,
-    shuffleQueue
+    shuffleQueue,
+    setQueue,
+    setIsShuffle,
+    setIsRepeat
   }
 }
 

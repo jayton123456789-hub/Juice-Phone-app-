@@ -252,6 +252,29 @@
   opacity: 0.7;
 }
 
+/* Clear Data Button */
+.clear-data-btn {
+  width: 100%;
+  padding: 16px;
+  background: rgba(255, 59, 48, 0.1);
+  border: 1px solid rgba(255, 59, 48, 0.3);
+  border-radius: 12px;
+  color: #ff3b30;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.2s;
+  margin-bottom: 12px;
+}
+
+.clear-data-btn:hover {
+  background: rgba(255, 59, 48, 0.2);
+}
+
 /* Sign Out Button */
 .signout-btn {
   width: 100%;
