@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { 
-  HiChevronDown, HiPlay, HiPause, HiHeart, 
-  HiShuffle, HiRepeat, HiVolumeUp, HiQueueList 
+  HiChevronDown, HiPlay, HiPause, HiHeart, HiQueueList 
 } from 'react-icons/hi2'
+import { FiShuffle, FiRepeat, FiVolume2 } from 'react-icons/fi'
 import { Song } from '../types'
 import './Player.css'
 
@@ -15,7 +15,7 @@ interface PlayerProps {
 
 export default function Player({ song, isPlaying, setIsPlaying, onClose }: PlayerProps) {
   const [progress, setProgress] = useState(0)
-  const [duration, setDuration] = useState(237) // Mock duration in seconds
+  const [duration] = useState(237) // Mock duration in seconds
   const [currentTime, setCurrentTime] = useState(0)
   const [volume, setVolume] = useState(80)
   const [isShuffle, setIsShuffle] = useState(false)
@@ -162,7 +162,7 @@ export default function Player({ song, isPlaying, setIsPlaying, onClose }: Playe
           className={`control-btn secondary ${isShuffle ? 'active' : ''}`}
           onClick={() => setIsShuffle(!isShuffle)}
         >
-          <HiShuffle />
+          <FiShuffle />
         </button>
 
         <button className="control-btn">
@@ -185,14 +185,14 @@ export default function Player({ song, isPlaying, setIsPlaying, onClose }: Playe
           className={`control-btn secondary ${isRepeat ? 'active' : ''}`}
           onClick={() => setIsRepeat(!isRepeat)}
         >
-          <HiRepeat />
+          <FiRepeat />
         </button>
       </div>
 
       {/* Volume & Lyrics Toggle */}
       <div className="extra-controls">
         <div className="volume-control">
-          <HiVolumeUp />
+          <FiVolume2 />
           <div className="volume-slider">
             <input 
               type="range" 
