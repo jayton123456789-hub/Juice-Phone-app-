@@ -1,5 +1,5 @@
-import { app, BrowserWindow } from 'electron'
-import path from 'path'
+const { app, BrowserWindow } = require('electron')
+const path = require('path')
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -16,7 +16,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.cjs')
     },
     icon: path.join(__dirname, '../public/icon.png'),
     titleBarStyle: 'hidden',
