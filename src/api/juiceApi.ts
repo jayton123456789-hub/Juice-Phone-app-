@@ -23,10 +23,12 @@ export const juiceApi = {
   // Get all songs
   async getSongs(limit = 50): Promise<Song[]> {
     try {
-      const response = await api.get('/songs', { params: { limit } })
-      return (response.data.songs || response.data || []).map(transformSong)
+      const response = await api.get('/songs', { params: { limit }, timeout: 5000 })
+      const songs = (response.data?.songs || response.data || [])
+      if (songs.length === 0) return getMockSongs()
+      return songs.map(transformSong)
     } catch (error) {
-      console.error('Error fetching songs:', error)
+      console.log('API error, using mock data:', error)
       return getMockSongs()
     }
   },

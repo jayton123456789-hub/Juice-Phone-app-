@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { HiHome, HiSearch, HiHeart } from 'react-icons/hi'
 import Home from './pages/Home'
 import Search from './pages/Search'
@@ -15,8 +15,20 @@ function App() {
 
   // Prevent right-click context menu (mobile-like behavior)
   useEffect(() => {
-    document.addEventListener('contextmenu', (e) => e.preventDefault())
-    return () => document.removeEventListener('contextmenu', (e) => e.preventDefault())
+    const handler = (e: MouseEvent) => e.preventDefault()
+    document.addEventListener('contextmenu', handler)
+    return () => document.removeEventListener('contextmenu', handler)
+  }, [])
+
+  // Prevent spacebar from scrolling
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && e.target === document.body) {
+        e.preventDefault()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
   }, [])
 
   const handleSongSelect = (song: Song) => {
@@ -65,8 +77,8 @@ function App() {
 
         {/* Window controls for desktop */}
         <div className="window-controls">
-          <button className="win-btn minimize">−</button>
-          <button className="win-btn close">×</button>
+          <button className="win-btn minimize" onClick={() => window.electronAPI?.minimize?.() || console.log('minimize')}>−</button>
+          <button className="win-btn close" onClick={() => window.electronAPI?.close?.() || window.close()}>×</button>
         </div>
       </div>
     </div>
@@ -74,9 +86,9 @@ function App() {
 }
 
 function NavItem({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) {
-  const isActive = window.location.pathname === to
+  const isActive = window.location.hash === `#${to}` || (to === '/' && window.location.hash === '')
   return (
-    <a href={to} className={`nav-item ${isActive ? 'active' : ''}`}>
+    <a href={`#${to}`} className={`nav-item ${isActive ? 'active' : ''}`}>
       {icon}
       <span>{label}</span>
     </a>

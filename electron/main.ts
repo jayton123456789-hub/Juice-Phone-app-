@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron')
+const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
 
 const isDev = process.env.NODE_ENV === 'development'
@@ -40,7 +40,20 @@ function createWindow() {
   })
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  createWindow()
+  
+  // IPC handlers for window controls
+  ipcMain.on('window-minimize', () => {
+    const win = BrowserWindow.getFocusedWindow()
+    if (win) win.minimize()
+  })
+  
+  ipcMain.on('window-close', () => {
+    const win = BrowserWindow.getFocusedWindow()
+    if (win) win.close()
+  })
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

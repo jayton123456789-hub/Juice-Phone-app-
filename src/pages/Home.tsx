@@ -4,6 +4,18 @@ import { juiceApi } from '../api/juiceApi'
 import { Song } from '../types'
 import './Home.css'
 
+// Mock songs for when API fails
+const getMockSongs = (): Song[] => [
+  { id: '1', title: 'Lucid Dreams', artist: 'Juice WRLD', album: 'Goodbye & Good Riddance', coverArt: 'https://i.scdn.co/image/ab67616d0000b273f7db7f8c8a92ffc9c3f2c422' },
+  { id: '2', title: 'All Girls Are The Same', artist: 'Juice WRLD', album: 'Goodbye & Good Riddance', coverArt: 'https://i.scdn.co/image/ab67616d0000b273f7db7f8c8a92ffc9c3f2c422' },
+  { id: '3', title: 'Legends', artist: 'Juice WRLD', album: 'WRLD ON DRUGS', coverArt: 'https://i.scdn.co/image/ab67616d0000b27333c6b920eabcf4b5e9514e66' },
+  { id: '4', title: 'Robbery', artist: 'Juice WRLD', album: 'Death Race for Love', coverArt: 'https://i.scdn.co/image/ab67616d0000b273b333e7f932f317c981ac37b7' },
+  { id: '5', title: 'Hear Me Calling', artist: 'Juice WRLD', album: 'Death Race for Love', coverArt: 'https://i.scdn.co/image/ab67616d0000b273b333e7f932f317c981ac37b7' },
+  { id: '6', title: 'Bandit', artist: 'Juice WRLD ft. NBA YoungBoy', album: 'Single', coverArt: 'https://i.scdn.co/image/ab67616d0000b273fe0f6850f5d5c5c0b5c5c5c5' },
+  { id: '7', title: 'Wasted', artist: 'Juice WRLD ft. Lil Uzi Vert', album: 'Goodbye & Good Riddance', coverArt: 'https://i.scdn.co/image/ab67616d0000b273f7db7f8c8a92ffc9c3f2c422' },
+  { id: '8', title: 'Lean Wit Me', artist: 'Juice WRLD', album: 'Goodbye & Good Riddance', coverArt: 'https://i.scdn.co/image/ab67616d0000b273f7db7f8c8a92ffc9c3f2c422' },
+]
+
 interface HomeProps {
   onSongSelect: (song: Song) => void
 }
@@ -19,9 +31,17 @@ export default function Home({ onSongSelect }: HomeProps) {
   }, [])
 
   const loadSongs = async () => {
-    const data = await juiceApi.getSongs(10)
-    setSongs(data)
-    setLoading(false)
+    try {
+      setLoading(true)
+      const data = await juiceApi.getSongs(10)
+      console.log('Loaded songs:', data)
+      setSongs(data || [])
+    } catch (err) {
+      console.error('Failed to load songs:', err)
+      setSongs(getMockSongs())
+    } finally {
+      setLoading(false)
+    }
   }
 
   const loadRecentlyPlayed = () => {
