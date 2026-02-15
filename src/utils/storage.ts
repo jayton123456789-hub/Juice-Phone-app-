@@ -3,7 +3,6 @@
 const STORAGE_VERSION = '5.0'
 const VERSION_KEY = 'wrld_version'
 
-const LEGACY_STORAGE_KEYS = ['juiceUser', 'storageVersion', 'defaultVolume']
 
 export const StorageKeys = {
   USER: 'wrld_user',
@@ -52,11 +51,15 @@ export function checkStorageVersion(): void {
 
 // Clear ALL app data
 export function clearAllData(): void {
-  Object.values(StorageKeys).forEach(key => {
-    localStorage.removeItem(key)
-  })
+  const keysToRemove: string[] = []
 
-  LEGACY_STORAGE_KEYS.forEach(key => {
+  for (let index = 0; index < localStorage.length; index++) {
+    const key = localStorage.key(index)
+    if (!key || key === VERSION_KEY) continue
+    keysToRemove.push(key)
+  }
+
+  keysToRemove.forEach((key) => {
     localStorage.removeItem(key)
   })
 

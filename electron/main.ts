@@ -4,26 +4,27 @@ const fs = require('fs')
 const os = require('os')
 
 const isDev = process.env.NODE_ENV === 'development'
-const LEGACY_CONFIG_PATHS = [
-  path.join(os.homedir(), '.wrld-app-config.json')
+const RESETTABLE_CONFIG_PATHS = [
+  path.join(os.homedir(), '.wrld-app-config.json'),
+  path.join(os.homedir(), '.wrld-player-config.json')
 ]
 
 let mainWindow: typeof BrowserWindow | null = null
 
-function removeLegacyConfigFiles() {
-  for (const configPath of LEGACY_CONFIG_PATHS) {
+function resetAppStateFiles() {
+  for (const configPath of RESETTABLE_CONFIG_PATHS) {
     try {
       if (fs.existsSync(configPath)) {
         fs.rmSync(configPath, { force: true })
       }
     } catch (e) {
-      console.error('Failed to remove legacy config:', configPath, e)
+      console.error('Failed to reset app-state config:', configPath, e)
     }
   }
 }
 
 function createWindow() {
-  removeLegacyConfigFiles()
+  resetAppStateFiles()
 
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -80,7 +81,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('get-desktop-mode', () => true)
   ipcMain.handle('reset-app-state', () => {
-    removeLegacyConfigFiles()
+    resetAppStateFiles()
     return true
   })
 })
