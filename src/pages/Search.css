@@ -1,0 +1,241 @@
+.search {
+  padding-bottom: 100px;
+}
+
+.search-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  margin-top: 10px;
+}
+
+.search-box {
+  position: relative;
+  margin-bottom: 25px;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 14px 45px;
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 16px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.search-box input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.1);
+}
+
+.search-box input::placeholder {
+  color: var(--text-secondary);
+}
+
+.search-icon {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  color: var(--text-secondary);
+}
+
+.clear-btn {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg-elevated);
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+/* Search Results */
+.search-results h3,
+.recent-searches h3,
+.browse-categories h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 15px;
+  color: var(--text-secondary);
+}
+
+.result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.result-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 10px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.result-item:hover {
+  background: var(--bg-elevated);
+}
+
+.result-cover {
+  width: 50px;
+  height: 50px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.result-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover-placeholder-small {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+  font-size: 20px;
+}
+
+.result-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.result-info h4 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-info p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.no-results {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+}
+
+/* Recent Searches */
+.recent-searches {
+  animation: fadeIn 0.3s ease;
+}
+
+.recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 30px;
+}
+
+.recent-item-search {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 15px;
+  background: var(--bg-card);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.recent-item-search:hover {
+  background: var(--bg-elevated);
+}
+
+.recent-item-search span {
+  font-size: 15px;
+}
+
+.recent-item-search button {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recent-item-search button:hover {
+  color: var(--text-primary);
+}
+
+/* Categories */
+.category-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.category-card {
+  padding: 40px 15px 15px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.category-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 100%);
+}
+
+.category-card:hover {
+  transform: scale(1.02);
+  filter: brightness(1.1);
+}
+
+.category-card span {
+  font-size: 16px;
+  font-weight: 700;
+  position: relative;
+  z-index: 1;
+}
+
+.loading-state {
+  text-align: center;
+  padding: 60px;
+  color: var(--text-secondary);
+}
+
+.empty-text {
+  color: var(--text-secondary);
+  font-size: 14px;
+  padding: 10px 0;
+}
