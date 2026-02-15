@@ -1,71 +1,64 @@
-import { HiPlay, HiPause, HiChevronUp } from 'react-icons/hi'
-import { FiSkipBack, FiSkipForward } from 'react-icons/fi'
-import CoverImage from './CoverImage'
+import { Play, Pause, SkipForward, Maximize2 } from 'lucide-react'
 import { Song } from '../types'
 import './MiniPlayer.css'
 
 interface MiniPlayerProps {
-  song: Song | null
+  currentSong: Song | null
   isPlaying: boolean
-  onOpenFull: () => void
-  onTogglePlay: () => void
+  onPlayPause: () => void
   onNext: () => void
-  onPrevious: () => void
+  onExpand: () => void
 }
 
-export default function MiniPlayer({ 
-  song, 
-  isPlaying, 
-  onOpenFull, 
-  onTogglePlay,
-  onNext,
-  onPrevious
-}: MiniPlayerProps) {
-  if (!song) return null
+export function MiniPlayer({ currentSong, isPlaying, onPlayPause, onNext, onExpand }: MiniPlayerProps) {
+  if (!currentSong) return null
 
   return (
-    <div className="mini-player" onClick={onOpenFull}>
+    <div className="mini-player">
       <div className="mini-player-content">
-        {/* Album Art */}
-        <div className={`mini-art ${isPlaying ? 'playing' : ''}`}>
-          <CoverImage 
-            src={song.coverArt}
-            alt={song.title}
-            size="small"
-          />
-        </div>
-
-        {/* Song Info */}
-        <div className="mini-info">
-          <h4 className="mini-title">{song.title}</h4>
-          <p className="mini-artist">{song.artist}</p>
-        </div>
+        {/* Song Info - Click to expand */}
+        <button className="mini-player-info" onClick={onExpand}>
+          <div className="mini-player-cover">
+            {currentSong.coverArt ? (
+              <img src={currentSong.coverArt} alt={currentSong.title} />
+            ) : (
+              <div className="mini-player-cover-placeholder">
+                <span>♪</span>
+              </div>
+            )}
+          </div>
+          <div className="mini-player-text">
+            <span className="mini-player-title">{currentSong.title}</span>
+            <span className="mini-player-artist">{currentSong.artist}</span>
+          </div>
+        </button>
 
         {/* Controls */}
-        <div className="mini-controls" onClick={(e) => e.stopPropagation()}>
-          <button className="mini-btn" onClick={onPrevious}>
-            <FiSkipBack />
+        <div className="mini-player-controls">
+          <button 
+            className="mini-player-btn"
+            onClick={onPlayPause}
+          >
+            {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
           </button>
           
-          <button className="mini-btn play" onClick={onTogglePlay}>
-            {isPlaying ? <HiPause /> : <HiPlay />}
+          <button 
+            className="mini-player-btn"
+            onClick={onNext}
+          >
+            <SkipForward size={18} />
           </button>
           
-          <button className="mini-btn" onClick={onNext}>
-            <FiSkipForward />
+          <button 
+            className="mini-player-btn expand"
+            onClick={onExpand}
+          >
+            <Maximize2 size={18} />
           </button>
         </div>
-
-        {/* Expand Button */}
-        <button className="mini-expand" onClick={onOpenFull}>
-          <HiChevronUp />
-        </button>
-      </div>
-
-      {/* Progress Bar */}
-      <div className="mini-progress">
-        <div className={`mini-progress-bar ${isPlaying ? 'active' : ''}`}></div>
       </div>
     </div>
   )
 }
+
+export default MiniPlayer

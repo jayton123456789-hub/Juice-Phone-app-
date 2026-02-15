@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { HiPlay, HiHeart, HiClock } from 'react-icons/hi'
+import { HiPlay, HiFilter } from 'react-icons/hi'
 import { juiceApi } from '../api/juiceApi'
 import CoverImage from '../components/CoverImage'
 import { Song } from '../types'
@@ -22,10 +22,23 @@ export default function Discover({ onSongSelect }: DiscoverProps) {
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [catalogSongs, setCatalogSongs] = useState<Song[]>([])
   const [catalogPage, setCatalogPage] = useState(1)
-  const [loading, setLoading] = useState(false)
+  const [, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [activeTab, setActiveTab] = useState<'playlists' | 'catalog'>('playlists')
   const catalogRef = useRef<HTMLDivElement>(null)
+  
+  // Filters
+  const [showFilters, setShowFilters] = useState(false)
+  const [filterEra, setFilterEra] = useState('all')
+  const [filterYear, setFilterYear] = useState('all')
+  const [filterProducer, setFilterProducer] = useState('all')
+  const [sortBy, setSortBy] = useState('popular')
+  
+  // Filter options
+  const eras = ['all', 'Early (2015-2017)', 'DRFL Era', 'LND Era', 'Post-Death']
+  const years = ['all', '2015', '2016', '2017', '2018', '2019', '2020', '2021']
+  const producers = ['all', 'Nick Mira', 'Benny Blanco', 'Rex Kudo', 'DT', 'Purps', 'Sid Roams', 'MaxLord']
+  const sortOptions = ['popular', 'a-z', 'recent', 'random']
 
   // Generate auto-playlists
   useEffect(() => {
@@ -107,10 +120,53 @@ export default function Discover({ onSongSelect }: DiscoverProps) {
 
     try {
       const result = await juiceApi.getSongs(page, 50, 'released')
+      let songs = result.songs
+      
+      // Apply filters
+      if (filterEra !== 'all') {
+        songs = songs.filter(song => {
+          if (!song.releaseDate) return false
+          const year = new Date(song.releaseDate).getFullYear()
+          if (filterEra === 'Early (2015-2017)') return year >= 2015 && year <= 2017
+          if (filterEra === 'DRFL Era') return year === 2018 || year === 2019
+          if (filterEra === 'LND Era') return year === 2020
+          if (filterEra === 'Post-Death') return year >= 2020
+          return true
+        })
+      }
+      
+      if (filterYear !== 'all') {
+        songs = songs.filter(song => {
+          if (!song.releaseDate) return false
+          return new Date(song.releaseDate).getFullYear() === parseInt(filterYear)
+        })
+      }
+      
+      if (filterProducer !== 'all') {
+        songs = songs.filter(song => {
+          if (!song.producers) return false
+          // Producers is a string, check if it includes the producer name
+          return song.producers.toLowerCase().includes(filterProducer.toLowerCase())
+        })
+      }
+      
+      // Apply sorting
+      if (sortBy === 'a-z') {
+        songs = songs.sort((a, b) => a.title.localeCompare(b.title))
+      } else if (sortBy === 'recent') {
+        songs = songs.sort((a, b) => {
+          const dateA = a.releaseDate ? new Date(a.releaseDate).getTime() : 0
+          const dateB = b.releaseDate ? new Date(b.releaseDate).getTime() : 0
+          return dateB - dateA
+        })
+      } else if (sortBy === 'random') {
+        songs = songs.sort(() => Math.random() - 0.5)
+      }
+      
       if (page === 1) {
-        setCatalogSongs(result.songs)
+        setCatalogSongs(songs)
       } else {
-        setCatalogSongs(prev => [...prev, ...result.songs])
+        setCatalogSongs(prev => [...prev, ...songs])
       }
       setCatalogPage(page)
     } catch (err) {
@@ -163,7 +219,68 @@ export default function Discover({ onSongSelect }: DiscoverProps) {
             Catalog
           </button>
         </div>
+        
+        {/* Filter Button */}
+        {activeTab === 'catalog' && (
+          <button 
+            className="filter-btn"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <HiFilter />
+            Filters
+          </button>
+        )}
       </div>
+      
+      {/* Filters Panel */}
+      {showFilters && activeTab === 'catalog' && (
+        <div className="filters-panel">
+          <div className="filter-group">
+            <label>Era</label>
+            <select value={filterEra} onChange={e => { setFilterEra(e.target.value); loadCatalog(1) }}>
+              {eras.map(era => <option key={era} value={era}>{era}</option>)}
+            </select>
+          </div>
+          
+          <div className="filter-group">
+            <label>Year</label>
+            <select value={filterYear} onChange={e => { setFilterYear(e.target.value); loadCatalog(1) }}>
+              {years.map(year => <option key={year} value={year}>{year}</option>)}
+            </select>
+          </div>
+          
+          <div className="filter-group">
+            <label>Producer</label>
+            <select value={filterProducer} onChange={e => { setFilterProducer(e.target.value); loadCatalog(1) }}>
+              {producers.map(prod => <option key={prod} value={prod}>{prod}</option>)}
+            </select>
+          </div>
+          
+          <div className="filter-group">
+            <label>Sort By</label>
+            <select value={sortBy} onChange={e => { setSortBy(e.target.value); loadCatalog(1) }}>
+              {sortOptions.map(sort => (
+                <option key={sort} value={sort}>
+                  {sort.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <button 
+            className="reset-filters-btn"
+            onClick={() => {
+              setFilterEra('all')
+              setFilterYear('all')
+              setFilterProducer('all')
+              setSortBy('popular')
+              loadCatalog(1)
+            }}
+          >
+            Reset Filters
+          </button>
+        </div>
+      )}
 
       {activeTab === 'playlists' ? (
         <>

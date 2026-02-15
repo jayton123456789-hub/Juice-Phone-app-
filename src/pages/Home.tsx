@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { HiPlay, HiClock, HiHeart, HiTrendingUp, HiSparkles } from 'react-icons/hi'
+import { useState, useEffect } from 'react'
+import { HiPlay, HiClock, HiHeart, HiTrendingUp, HiSparkles, HiCog } from 'react-icons/hi'
 import { juiceApi } from '../api/juiceApi'
 import CoverImage from '../components/CoverImage'
 import { Song, User } from '../types'
@@ -9,6 +9,7 @@ interface HomeProps {
   onSongSelect: (song: Song) => void
   onRadioPlay: () => void
   onProfileClick: () => void
+  onSettingsClick?: () => void
   onSongsLoaded: (songs: Song[]) => void
   user: User | null
 }
@@ -26,11 +27,11 @@ interface Mix {
   icon: React.ReactNode
 }
 
-export default function Home({ onSongSelect, onRadioPlay, onProfileClick, onSongsLoaded, user }: HomeProps) {
+export default function Home({ onSongSelect, onRadioPlay, onProfileClick, onSettingsClick: _onSettingsClick, onSongsLoaded, user }: HomeProps) {
   const [mixes, setMixes] = useState<Mix[]>([])
   const [recentlyPlayed, setRecentlyPlayed] = useState<Song[]>([])
   const [favorites, setFavorites] = useState<Song[]>([])
-  const [loading, setLoading] = useState(true)
+  const [, setLoading] = useState(true)
   const [greeting, setGreeting] = useState('Good evening')
 
   useEffect(() => {
@@ -110,12 +111,6 @@ export default function Home({ onSongSelect, onRadioPlay, onProfileClick, onSong
     }
   }
 
-  const handleMixPlay = (mix: Mix) => {
-    if (mix.songs.length > 0) {
-      onSongSelect(mix.songs[0])
-    }
-  }
-
   return (
     <div className="page home-spotify">
       {/* Header */}
@@ -123,11 +118,16 @@ export default function Home({ onSongSelect, onRadioPlay, onProfileClick, onSong
         <div className="greeting-spotify">
           <h1>{greeting}</h1>
         </div>
-        <div className="profile-avatar-spotify" onClick={onProfileClick}>
-          <img 
-            src={user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username || 'juice'}`} 
-            alt="Profile" 
-          />
+        <div className="header-actions">
+          <button className="settings-btn-header" onClick={_onSettingsClick}>
+            <HiCog />
+          </button>
+          <div className="profile-avatar-spotify" onClick={onProfileClick}>
+            <img 
+              src={user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username || 'juice'}`} 
+              alt="Profile" 
+            />
+          </div>
         </div>
       </div>
 

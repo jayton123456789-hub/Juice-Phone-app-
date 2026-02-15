@@ -62,6 +62,22 @@ export function useUser() {
     window.location.reload()
   }, [])
 
+  // Refetch user from localStorage
+  const refetchUser = useCallback(() => {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored)
+        setUser(parsed)
+      } catch (e) {
+        console.error('Failed to parse user:', e)
+        setUser(null)
+      }
+    } else {
+      setUser(null)
+    }
+  }, [])
+
   return {
     user,
     isLoading,
@@ -70,7 +86,8 @@ export function useUser() {
     signUp,
     updateProfile,
     updateAvatar,
-    signOut
+    signOut,
+    refetchUser
   }
 }
 

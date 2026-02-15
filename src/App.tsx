@@ -1,292 +1,192 @@
 import { useState, useEffect, useCallback } from 'react'
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { HiHome, HiSearch, HiHeart, HiRadio } from 'react-icons/hi'
-import { HiSparkles } from 'react-icons/hi2'
-import Home from './pages/Home'
-import Search from './pages/Search'
-import Library from './pages/Library'
-import Radio from './pages/Radio'
-import Discover from './pages/Discover'
-import Player from './pages/Player'
-import Auth from './pages/Auth'
-import Profile from './pages/Profile'
-import MiniPlayer from './components/MiniPlayer'
-import QueuePanel from './components/QueuePanel'
-import SplashScreen from './components/SplashScreen'
 import { useAudioPlayer } from './hooks/useAudioPlayer'
-import { useUser } from './hooks/useUser'
-import { checkStorageVersion } from './utils/storage'
+import { MiniPlayer } from './components/MiniPlayer'
+import { FullPlayer } from './components/FullPlayer'
+import { MilkDropVisualizer } from './components/MilkDropVisualizer'
+import { DesktopLayout } from './desktop/DesktopLayout'
 import { Song } from './types'
 import './App.css'
 
-// Check storage version on load
-checkStorageVersion()
+// Simple song list for testing
+const SAMPLE_SONGS: Song[] = [
+  {
+    id: '1',
+    title: 'Lucid Dreams',
+    artist: 'Juice WRLD',
+    album: 'Goodbye & Good Riddance',
+    coverArt: 'https://upload.wikimedia.org/wikipedia/en/thumb/8/86/Goodbye_%26_Good_Riddance_Album_Cover.jpg/220px-Goodbye_%26_Good_Riddance_Album_Cover.jpg',
+    audioUrl: '', // Add your audio URL
+    category: 'Released'
+  },
+  {
+    id: '2', 
+    title: 'All Girls Are The Same',
+    artist: 'Juice WRLD',
+    album: 'Goodbye & Good Riddance',
+    coverArt: 'https://upload.wikimedia.org/wikipedia/en/thumb/8/86/Goodbye_%26_Good_Riddance_Album_Cover.jpg/220px-Goodbye_%26_Good_Riddance_Album_Cover.jpg',
+    audioUrl: '',
+    category: 'Released'
+  },
+  {
+    id: '3',
+    title: 'Robbery',
+    artist: 'Juice WRLD', 
+    album: 'Death Race for Love',
+    coverArt: 'https://upload.wikimedia.org/wikipedia/en/thumb/8/8b/Juice_Wrld_-_Death_Race_for_Love.png/220px-Juice_Wrld_-_Death_Race_for_Love.png',
+    audioUrl: '',
+    category: 'Released'
+  }
+]
 
 function App() {
-  const [showPlayer, setShowPlayer] = useState(false)
-  const [showProfile, setShowProfile] = useState(false)
-  const [showQueue, setShowQueue] = useState(false)
-  const [allSongs, setAllSongs] = useState<Song[]>([])
-  const [isStarting, setIsStarting] = useState(true)
-  
-  const { user, isLoading, isAuthenticated } = useUser()
-  const {
-    currentSong,
-    queue,
-    currentIndex,
-    isPlaying,
-    currentTime,
-    duration,
-    volume,
-    volumeBoost,
-    playSongWithQueue,
-    togglePlay,
-    playNext,
-    playPrevious,
-    seek,
-    setAudioVolume,
-    toggleVolumeBoost,
-    setQueue,
-    removeFromQueue
-  } = useAudioPlayer()
+  const [isDesktop, setIsDesktop] = useState(false)
+  const [showFullPlayer, setShowFullPlayer] = useState(false)
+  const [showVisualizer, setShowVisualizer] = useState(false)
+  const [songs] = useState<Song[]>(SAMPLE_SONGS)
 
-  // Splash screen timer
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsStarting(false)
-    }, 3500)
-    return () => clearTimeout(timer)
-  }, [])
+  const player = useAudioPlayer()
 
-  // Prevent right-click context menu (mobile-like behavior)
+  // Check if desktop mode on mount
   useEffect(() => {
-    const handler = (e: MouseEvent) => e.preventDefault()
-    document.addEventListener('contextmenu', handler)
-    return () => document.removeEventListener('contextmenu', handler)
-  }, [])
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (!currentSong) return
-      
-      switch (e.key) {
-        case 'MediaPlayPause':
-        case ' ':
-          if (e.target === document.body) {
-            e.preventDefault()
-            togglePlay()
-          }
-          break
-        case 'MediaTrackNext':
-        case 'ArrowRight':
-          if (e.ctrlKey || e.metaKey) {
-            playNext()
-          }
-          break
-        case 'MediaTrackPrevious':
-        case 'ArrowLeft':
-          if (e.ctrlKey || e.metaKey) {
-            playPrevious()
-          }
-          break
-        case 'm':
-          if (e.ctrlKey || e.metaKey) {
-            e.preventDefault()
-            setAudioVolume(volume === 0 ? 80 : 0)
-          }
-          break
-        case 'Escape':
-          if (showPlayer) setShowPlayer(false)
-          if (showQueue) setShowQueue(false)
-          break
-      }
+    const checkMode = () => {
+      const isDesktopMode = window.innerWidth >= 1024
+      setIsDesktop(isDesktopMode)
     }
     
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [currentSong, togglePlay, playNext, playPrevious, volume, setAudioVolume, showPlayer, showQueue])
+    checkMode()
+    window.addEventListener('resize', checkMode)
+    return () => window.removeEventListener('resize', checkMode)
+  }, [])
 
+  // Handle song selection
   const handleSongSelect = useCallback((song: Song) => {
-    playSongWithQueue(song, allSongs.length > 0 ? allSongs : [song])
-    setShowPlayer(true)
-  }, [allSongs, playSongWithQueue])
+    player.playSongWithQueue(song, songs)
+  }, [player, songs])
 
-  const handleRadioPlay = useCallback(async () => {
-    const { juiceApi } = await import('./api/juiceApi')
-    const songs = await juiceApi.getRadioSongs(20)
-    if (songs.length > 0) {
-      setQueue(songs, 0)
-      setShowPlayer(true)
+  // Handle mini player expand
+  const handleExpandPlayer = useCallback(() => {
+    setShowFullPlayer(true)
+  }, [])
+
+  // Handle visualizer open
+  const handleVisualize = useCallback(() => {
+    if (!player.sourceNode) {
+      console.warn('[App] No audio source available - play a song first')
+      return
     }
-  }, [setQueue])
+    setShowVisualizer(true)
+  }, [player.sourceNode])
 
-  const handleClosePlayer = () => {
-    setShowPlayer(false)
-  }
+  // Handle visualizer close
+  const handleCloseVisualizer = useCallback(() => {
+    setShowVisualizer(false)
+  }, [])
 
-  const handleOpenFullPlayer = () => {
-    setShowPlayer(true)
-  }
+  // Handle full player close
+  const handleCloseFullPlayer = useCallback(() => {
+    setShowFullPlayer(false)
+  }, [])
 
-  const handleQueueSongSelect = (index: number) => {
-    console.log('Select queue item:', index)
-  }
-
-  // Show splash screen
-  if (isStarting) {
+  // Desktop mode - use DesktopLayout
+  if (isDesktop) {
     return (
       <div className="app">
-        <div className="phone-frame">
-          <SplashScreen />
-        </div>
-      </div>
-    )
-  }
-
-  // Show auth screen if not authenticated
-  if (isLoading) {
-    return (
-      <div className="app">
-        <div className="phone-frame">
-          <div className="loading-screen">
-            <div className="spinner"></div>
-            <p>Loading...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="app">
-        <div className="phone-frame">
-          <Auth />
-        </div>
-      </div>
-    )
-  }
-
-  const showMiniPlayer = currentSong && !showPlayer
-
-  return (
-    <div className="app">
-      <div className="phone-frame">
-        {/* Draggable title bar */}
-        <div className="title-bar">
-          <div className="title-bar-text">WRLD</div>
-          <div className="window-controls">
-            <button className="win-btn minimize" onClick={() => window.electronAPI?.minimize?.()}>−</button>
-            <button className="win-btn close" onClick={() => window.electronAPI?.close?.() || window.close()}>×</button>
-          </div>
-        </div>
-
-        <div className="status-bar">
-          <span className="time">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-          <div className="notch"></div>
-          <div className="icons">
-            <span>📶</span>
-            <span>🔋</span>
-          </div>
-        </div>
+        <DesktopLayout />
         
-        <div className="app-content">
-          {showProfile ? (
-            <Profile onClose={() => setShowProfile(false)} />
-          ) : showPlayer && currentSong ? (
-            <Player 
-              song={currentSong}
-              isPlaying={isPlaying}
-              currentTime={currentTime}
-              duration={duration}
-              volume={volume}
-              volumeBoost={volumeBoost}
-              queueLength={queue.length}
-              hasNext={currentIndex < queue.length - 1}
-              hasPrevious={currentIndex > 0}
-              onTogglePlay={togglePlay}
-              onNext={playNext}
-              onPrevious={playPrevious}
-              onSeek={seek}
-              onVolumeChange={setAudioVolume}
-              onToggleVolumeBoost={toggleVolumeBoost}
-              onClose={handleClosePlayer}
-              onOpenQueue={() => setShowQueue(true)}
-            />
-          ) : (
-            <Router>
-              <Routes>
-                <Route path="/" element={
-                  <Home 
-                    onSongSelect={handleSongSelect}
-                    onRadioPlay={handleRadioPlay}
-                    onProfileClick={() => setShowProfile(true)}
-                    onSongsLoaded={setAllSongs}
-                    user={user}
-                  />
-                } />
-                <Route path="/radio" element={
-                  <Radio onSongSelect={handleSongSelect} />
-                } />
-                <Route path="/search" element={
-                  <Search onSongSelect={handleSongSelect} />
-                } />
-                <Route path="/library" element={
-                  <Library onSongSelect={handleSongSelect} />
-                } />
-                <Route path="/discover" element={
-                  <Discover onSongSelect={handleSongSelect} />
-                } />
-                <Route path="*" element={<Navigate to="/" />} />
-              </Routes>
-              
-              <nav className="bottom-nav">
-                <NavItem to="/" icon={<HiHome />} label="Home" />
-                <NavItem to="/radio" icon={<HiRadio />} label="Radio" />
-                <NavItem to="/search" icon={<HiSearch />} label="Search" />
-                <NavItem to="/library" icon={<HiHeart />} label="Library" />
-                <NavItem to="/discover" icon={<HiSparkles />} label="Discover" />
-              </nav>
-            </Router>
-          )}
-        </div>
-
-        {/* Mini Player */}
-        {showMiniPlayer && (
-          <MiniPlayer
-            song={currentSong}
-            isPlaying={isPlaying}
-            onOpenFull={handleOpenFullPlayer}
-            onTogglePlay={togglePlay}
-            onNext={playNext}
-            onPrevious={playPrevious}
+        {/* Visualizer Overlay */}
+        {showVisualizer && (
+          <MilkDropVisualizer
+            isPlaying={player.isPlaying}
+            audioContext={player.audioContext}
+            sourceNode={player.sourceNode}
+            onClose={handleCloseVisualizer}
           />
         )}
-
-        {/* Queue Panel */}
-        <QueuePanel
-          queue={queue}
-          currentIndex={currentIndex}
-          isOpen={showQueue}
-          onClose={() => setShowQueue(false)}
-          onSongSelect={handleQueueSongSelect}
-          onClearQueue={() => setQueue([], -1)}
-          onRemoveSong={removeFromQueue}
-        />
       </div>
-    </div>
-  )
-}
+    )
+  }
 
-function NavItem({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) {
-  const hash = window.location.hash || '#'
-  const isActive = hash === `#${to}` || (to === '/' && hash === '#')
+  // Mobile mode - simplified flow
   return (
-    <a href={`#${to}`} className={`nav-item ${isActive ? 'active' : ''}`}>
-      {icon}
-      <span>{label}</span>
-    </a>
+    <div className="app mobile">
+      {/* Main Content - Song List */}
+      <main className="mobile-content">
+        <h1 className="mobile-title">WRLD</h1>
+        
+        <div className="song-list">
+          <h2>Songs</h2>
+          {songs.map(song => (
+            <button
+              key={song.id}
+              className={`song-item ${player.currentSong?.id === song.id ? 'playing' : ''}`}
+              onClick={() => handleSongSelect(song)}
+            >
+              <div className="song-cover">
+                {song.coverArt ? (
+                  <img src={song.coverArt} alt={song.title} />
+                ) : (
+                  <div className="song-cover-placeholder">♪</div>
+                )}
+              </div>
+              <div className="song-info">
+                <span className="song-title">{song.title}</span>
+                <span className="song-artist">{song.artist}</span>
+              </div>
+              {player.currentSong?.id === song.id && player.isPlaying && (
+                <div className="playing-indicator">
+                  <span /><span /><span />
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      </main>
+
+      {/* Mini Player - Shows when song is selected */}
+      {player.currentSong && (
+        <MiniPlayer
+          currentSong={player.currentSong}
+          isPlaying={player.isPlaying}
+          onPlayPause={player.togglePlay}
+          onNext={player.playNext}
+          onExpand={handleExpandPlayer}
+        />
+      )}
+
+      {/* Full Player - Opens when mini player clicked */}
+      {showFullPlayer && (
+        <FullPlayer
+          currentSong={player.currentSong}
+          isPlaying={player.isPlaying}
+          currentTime={player.currentTime}
+          duration={player.duration}
+          volume={player.volume}
+          isShuffle={player.isShuffle}
+          isRepeat={player.isRepeat}
+          queue={player.queue}
+          onPlayPause={player.togglePlay}
+          onNext={player.playNext}
+          onPrevious={player.playPrevious}
+          onSeek={player.seek}
+          onVolumeChange={player.setAudioVolume}
+          onShuffleToggle={() => player.setIsShuffle(!player.isShuffle)}
+          onRepeatToggle={() => player.setIsRepeat(!player.isRepeat)}
+          onClose={handleCloseFullPlayer}
+          onVisualize={handleVisualize}
+          isVisualizing={showVisualizer}
+        />
+      )}
+
+      {/* MilkDrop Visualizer - Opens when VISUALIZE clicked */}
+      {showVisualizer && (
+        <MilkDropVisualizer
+          isPlaying={player.isPlaying}
+          audioContext={player.audioContext}
+          sourceNode={player.sourceNode}
+          onClose={handleCloseVisualizer}
+        />
+      )}
+    </div>
   )
 }
 

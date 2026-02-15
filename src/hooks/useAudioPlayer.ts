@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Song } from '../types'
-import { loadQueue, saveQueue, getSettings, saveSettings } from '../utils/storage'
+import { loadQueue, saveQueue, getSettings, saveSettings, addToRecentlyPlayed } from '../utils/storage'
 
 export function useAudioPlayer() {
   const [currentSong, setCurrentSong] = useState<Song | null>(null)
@@ -13,55 +13,76 @@ export function useAudioPlayer() {
   const [isShuffle, setIsShuffle] = useState(false)
   const [isRepeat, setIsRepeat] = useState(false)
   const [volumeBoost, setVolumeBoost] = useState(false)
+  const [isReady, setIsReady] = useState(false)
   
-  // Web Audio API refs for volume boost
+  // Web Audio API refs - initialize IMMEDIATELY on hook mount
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null)
   const gainNodeRef = useRef<GainNode | null>(null)
   const filtersRef = useRef<BiquadFilterNode[]>([])
+  const initRef = useRef(false)
 
-  // Initialize audio element and Web Audio API
+  // Initialize audio element and Web Audio API ONCE on mount
   useEffect(() => {
+    if (initRef.current) return
+    initRef.current = true
+
+    console.log('[AudioPlayer] Initializing audio system...')
+
     const audio = new Audio()
     audioRef.current = audio
-    audio.volume = Math.min(volume / 100, 1) // HTML volume max is 1.0
+    audio.volume = Math.min(volume / 100, 1)
 
-    // Initialize Web Audio API for volume boost
+    // Initialize Web Audio API immediately
     try {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext
-      audioContextRef.current = new AudioContext()
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
+      const audioContext = new AudioContextClass()
+      audioContextRef.current = audioContext
+      
+      console.log('[AudioPlayer] AudioContext created:', audioContext.state)
       
       // Create gain node for volume boost
-      gainNodeRef.current = audioContextRef.current.createGain()
-      gainNodeRef.current.connect(audioContextRef.current.destination)
+      gainNodeRef.current = audioContext.createGain()
+      gainNodeRef.current.connect(audioContext.destination)
       
       // Create EQ filters
-      const bass = audioContextRef.current.createBiquadFilter()
+      const bass = audioContext.createBiquadFilter()
       bass.type = 'lowshelf'
       bass.frequency.value = 200
       bass.gain.value = 0
       
-      const mid = audioContextRef.current.createBiquadFilter()
+      const mid = audioContext.createBiquadFilter()
       mid.type = 'peaking'
       mid.frequency.value = 1000
       mid.Q.value = 1
       mid.gain.value = 0
       
-      const treble = audioContextRef.current.createBiquadFilter()
+      const treble = audioContext.createBiquadFilter()
       treble.type = 'highshelf'
       treble.frequency.value = 3000
       treble.gain.value = 0
       
       filtersRef.current = [bass, mid, treble]
       
-      // Connect: audio -> bass -> mid -> treble -> gain -> destination
+      // Connect filter chain: bass -> mid -> treble -> gain -> destination
       bass.connect(mid)
       mid.connect(treble)
       treble.connect(gainNodeRef.current)
       
+      // Create MediaElementSource ONCE
+      const source = audioContext.createMediaElementSource(audio)
+      sourceNodeRef.current = source
+      
+      // Connect source to filters
+      source.connect(bass)
+      
+      console.log('[AudioPlayer] Audio system initialized successfully')
+      console.log('[AudioPlayer] Source node created:', !!sourceNodeRef.current)
+      setIsReady(true)
+      
     } catch (e) {
-      console.warn('Web Audio API not supported:', e)
+      console.error('[AudioPlayer] Web Audio API failed:', e)
     }
 
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
@@ -70,7 +91,7 @@ export function useAudioPlayer() {
     const handlePlay = () => setIsPlaying(true)
     const handlePause = () => setIsPlaying(false)
     const handleError = (e: ErrorEvent) => {
-      console.error('Audio error:', e)
+      console.error('[AudioPlayer] Audio error:', e)
       setIsPlaying(false)
     }
 
@@ -98,26 +119,21 @@ export function useAudioPlayer() {
       audio.removeEventListener('error', handleError as EventListener)
       audio.pause()
       
-      // Clean up Web Audio
       if (audioContextRef.current?.state !== 'closed') {
         audioContextRef.current?.close()
       }
     }
   }, [])
 
-  // Connect audio element to Web Audio API when source changes
-  const connectAudioToWebAudio = useCallback(() => {
-    if (!audioRef.current || !audioContextRef.current || !gainNodeRef.current) return
-    
-    // Only connect if not already connected
-    if (!sourceNodeRef.current) {
+  // Resume AudioContext on user interaction (browser requirement)
+  const resumeAudioContext = useCallback(async () => {
+    const ctx = audioContextRef.current
+    if (ctx && ctx.state === 'suspended') {
       try {
-        sourceNodeRef.current = audioContextRef.current.createMediaElementSource(audioRef.current)
-        // Connect through EQ filters
-        sourceNodeRef.current.connect(filtersRef.current[0])
+        await ctx.resume()
+        console.log('[AudioPlayer] AudioContext resumed:', ctx.state)
       } catch (e) {
-        // Already connected or other error
-        console.log('Audio already connected or error:', e)
+        console.error('[AudioPlayer] Failed to resume AudioContext:', e)
       }
     }
   }, [])
@@ -125,15 +141,12 @@ export function useAudioPlayer() {
   // Apply volume boost
   useEffect(() => {
     if (gainNodeRef.current) {
-      // Apply boost: normal volume is 1.0, boost can go to 1.5 (150%)
       const boostMultiplier = volumeBoost ? 1.5 : 1.0
       const finalGain = (volume / 100) * boostMultiplier
       
-      // Smooth transition
       gainNodeRef.current.gain.setTargetAtTime(finalGain, audioContextRef.current?.currentTime || 0, 0.1)
     }
     
-    // Also set HTML audio volume (capped at 1.0)
     if (audioRef.current) {
       audioRef.current.volume = Math.min(volume / 100, 1)
     }
@@ -148,25 +161,50 @@ export function useAudioPlayer() {
 
   // Handle song ended - play next
   const handleSongEnded = useCallback(() => {
+    console.log('[AudioPlayer] Song ended. Repeat:', isRepeat, 'Queue length:', queue.length, 'Current index:', currentIndex)
+    
     if (isRepeat && audioRef.current) {
+      console.log('[AudioPlayer] Repeating current song')
       audioRef.current.currentTime = 0
       audioRef.current.play().catch(console.error)
     } else if (currentIndex < queue.length - 1) {
+      console.log('[AudioPlayer] Playing next song in queue')
       const nextIndex = currentIndex + 1
       setCurrentIndex(nextIndex)
       const nextSong = queue[nextIndex]
       if (nextSong && audioRef.current) {
-        audioRef.current.src = nextSong.audioUrl || ''
+        console.log('[AudioPlayer] Next song:', nextSong.title)
+        
+        if (!nextSong.audioUrl) {
+          console.warn('[AudioPlayer] Next song has no audio URL, skipping')
+          // Skip to next song
+          if (nextIndex < queue.length - 1) {
+            setCurrentIndex(nextIndex + 1)
+            const followingSong = queue[nextIndex + 1]
+            if (followingSong?.audioUrl) {
+              audioRef.current.src = followingSong.audioUrl
+              audioRef.current.load()
+              setCurrentSong(followingSong)
+              audioRef.current.play().catch(console.error)
+            }
+          }
+          return
+        }
+        
+        audioRef.current.src = nextSong.audioUrl
         audioRef.current.load()
         setCurrentSong(nextSong)
-        connectAudioToWebAudio()
-        audioRef.current.play().catch(console.error)
+        audioRef.current.play().catch(err => {
+          console.error('[AudioPlayer] Failed to play next song:', err)
+          setIsPlaying(false)
+        })
       }
     } else {
+      console.log('[AudioPlayer] End of queue reached')
       setIsPlaying(false)
       setCurrentTime(0)
     }
-  }, [currentIndex, queue, isRepeat, connectAudioToWebAudio])
+  }, [currentIndex, queue, isRepeat])
 
   // Set queue directly
   const setQueue = useCallback((songs: Song[], startIndex: number = 0) => {
@@ -178,14 +216,16 @@ export function useAudioPlayer() {
   }, [])
 
   // Play a specific song
-  const playSong = useCallback((song: Song, autoPlay: boolean = true) => {
+  const playSong = useCallback(async (song: Song, autoPlay: boolean = true) => {
     if (!audioRef.current) return
     
-    console.log('Playing song:', song.title, 'URL:', song.audioUrl)
+    console.log('[AudioPlayer] Playing song:', song.title)
     
-    // If song has no audio URL, we can't play it
+    // Resume AudioContext first (browser requirement)
+    await resumeAudioContext()
+    
     if (!song.audioUrl) {
-      console.warn('No audio URL for song:', song.title)
+      console.warn('[AudioPlayer] No audio URL for song:', song.title)
       setCurrentSong(song)
       setIsPlaying(false)
       return
@@ -194,7 +234,6 @@ export function useAudioPlayer() {
     // Check if same song is already loaded
     if (currentSong?.id === song.id && audioRef.current.src === song.audioUrl) {
       if (autoPlay) {
-        connectAudioToWebAudio()
         audioRef.current.play().catch(console.error)
       }
       return
@@ -206,16 +245,16 @@ export function useAudioPlayer() {
     setCurrentSong(song)
     setCurrentTime(0)
     
-    // Connect to Web Audio API for boost
-    connectAudioToWebAudio()
+    // Add to recently played
+    addToRecentlyPlayed(song)
     
     if (autoPlay) {
       audioRef.current.play().catch(err => {
-        console.error('Failed to play:', err)
+        console.error('[AudioPlayer] Failed to play:', err)
         setIsPlaying(false)
       })
     }
-  }, [currentSong, connectAudioToWebAudio])
+  }, [currentSong, resumeAudioContext])
 
   // Add song to queue and play it
   const playSongWithQueue = useCallback((song: Song, allSongs: Song[] = []) => {
@@ -228,16 +267,17 @@ export function useAudioPlayer() {
   }, [playSong])
 
   // Toggle play/pause
-  const togglePlay = useCallback(() => {
+  const togglePlay = useCallback(async () => {
     if (!audioRef.current || !currentSong) return
+    
+    await resumeAudioContext()
     
     if (isPlaying) {
       audioRef.current.pause()
     } else {
-      connectAudioToWebAudio()
       audioRef.current.play().catch(console.error)
     }
-  }, [isPlaying, currentSong, connectAudioToWebAudio])
+  }, [isPlaying, currentSong, resumeAudioContext])
 
   // Play next song
   const playNext = useCallback(() => {
@@ -346,7 +386,7 @@ export function useAudioPlayer() {
         mid.gain.setTargetAtTime(0, audioContextRef.current?.currentTime || 0, 0.1)
         treble.gain.setTargetAtTime(8, audioContextRef.current?.currentTime || 0, 0.1)
         break
-      default: // flat
+      default:
         bass.gain.setTargetAtTime(0, audioContextRef.current?.currentTime || 0, 0.1)
         mid.gain.setTargetAtTime(0, audioContextRef.current?.currentTime || 0, 0.1)
         treble.gain.setTargetAtTime(0, audioContextRef.current?.currentTime || 0, 0.1)
@@ -364,6 +404,7 @@ export function useAudioPlayer() {
     volumeBoost,
     isShuffle,
     isRepeat,
+    isReady,
     playSong,
     playSongWithQueue,
     togglePlay,
@@ -379,7 +420,10 @@ export function useAudioPlayer() {
     setQueue,
     setIsShuffle,
     setIsRepeat,
-    applyEQ
+    applyEQ,
+    // Expose audio context and source node for visualizer
+    audioContext: audioContextRef.current,
+    sourceNode: sourceNodeRef.current
   }
 }
 

@@ -58,15 +58,21 @@
 
 /* Logo */
 .splash-logo {
-  width: 200px;
-  height: auto;
+  width: 240px;
+  height: 240px;
   margin-bottom: 60px;
   animation: logoPulse 2s ease-in-out infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: url('../assets/LOGO_WITH_NO_BACKGROUND.png') center/contain no-repeat;
+  filter: drop-shadow(0 0 30px rgba(131, 56, 236, 0.5));
 }
 
 .splash-logo img {
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: contain;
   filter: drop-shadow(0 0 30px rgba(131, 56, 236, 0.5));
 }
 

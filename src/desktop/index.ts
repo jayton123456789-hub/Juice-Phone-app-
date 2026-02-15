@@ -1,0 +1,6 @@
+export { default as DesktopHome } from './DesktopHome'
+export { default as DesktopLibrary } from './DesktopLibrary'
+export { default as DesktopSearch } from './DesktopSearch'
+export { default as DesktopRadio } from './DesktopRadio'
+export { default as DesktopDiscover } from './DesktopDiscover'
+export { default as DesktopLayout } from './DesktopLayout'

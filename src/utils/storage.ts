@@ -144,3 +144,119 @@ export function loadQueue(): { queue: any[], currentIndex: number } | null {
   }
   return null
 }
+
+// Data cache (for categories, eras, etc.)
+const DATA_CACHE_PREFIX = 'juicedata_'
+const DATA_CACHE_TTL = 24 * 60 * 60 * 1000 // 24 hours
+
+export function getCachedData(key: string): any | null {
+  const stored = localStorage.getItem(`${DATA_CACHE_PREFIX}${key}`)
+  if (stored) {
+    try {
+      const { data, timestamp } = JSON.parse(stored)
+      if (Date.now() - timestamp < DATA_CACHE_TTL) {
+        return data
+      }
+    } catch (e) {
+      console.error('Failed to parse cached data:', e)
+    }
+  }
+  return null
+}
+
+export function cacheData(key: string, data: any): void {
+  localStorage.setItem(`${DATA_CACHE_PREFIX}${key}`, JSON.stringify({
+    data,
+    timestamp: Date.now()
+  }))
+}
+
+// Favorites/Likes management
+export function getFavorites(): any[] {
+  const stored = localStorage.getItem(StorageKeys.FAVORITES)
+  if (stored) {
+    try {
+      return JSON.parse(stored)
+    } catch (e) {
+      console.error('Failed to parse favorites:', e)
+    }
+  }
+  return []
+}
+
+export function saveFavorites(favorites: any[]): void {
+  localStorage.setItem(StorageKeys.FAVORITES, JSON.stringify(favorites))
+}
+
+export function toggleFavorite(song: any): boolean {
+  const favorites = getFavorites()
+  const index = favorites.findIndex(s => s.id === song.id)
+  
+  if (index >= 0) {
+    // Remove from favorites
+    favorites.splice(index, 1)
+    saveFavorites(favorites)
+    return false
+  } else {
+    // Add to favorites
+    favorites.unshift({ ...song, favoritedAt: Date.now() })
+    saveFavorites(favorites)
+    return true
+  }
+}
+
+export function isFavorite(songId: string | number): boolean {
+  const favorites = getFavorites()
+  return favorites.some(s => s.id === songId)
+}
+
+// Recently Played management
+export function getRecentlyPlayed(): any[] {
+  const stored = localStorage.getItem(StorageKeys.RECENTLY_PLAYED)
+  if (stored) {
+    try {
+      return JSON.parse(stored)
+    } catch (e) {
+      console.error('Failed to parse recently played:', e)
+    }
+  }
+  return []
+}
+
+export function addToRecentlyPlayed(song: any): void {
+  let recent = getRecentlyPlayed()
+  
+  // Remove if already exists
+  recent = recent.filter(s => s.id !== song.id)
+  
+  // Add to front
+  recent.unshift({ ...song, playedAt: Date.now() })
+  
+  // Keep only last 50
+  recent = recent.slice(0, 50)
+  
+  localStorage.setItem(StorageKeys.RECENTLY_PLAYED, JSON.stringify(recent))
+}
+
+// Playlist song management
+export function addSongToPlaylist(playlistId: string, songId: string): void {
+  const playlists = getPlaylists()
+  const playlist = playlists.find(p => p.id === playlistId)
+  
+  if (playlist && !playlist.songIds.includes(songId)) {
+    playlist.songIds.push(songId)
+    playlist.updatedAt = Date.now()
+    savePlaylist(playlist)
+  }
+}
+
+export function removeSongFromPlaylist(playlistId: string, songId: string): void {
+  const playlists = getPlaylists()
+  const playlist = playlists.find(p => p.id === playlistId)
+  
+  if (playlist) {
+    playlist.songIds = playlist.songIds.filter(id => id !== songId)
+    playlist.updatedAt = Date.now()
+    savePlaylist(playlist)
+  }
+}

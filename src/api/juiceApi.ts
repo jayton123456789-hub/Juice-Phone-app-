@@ -1,6 +1,6 @@
 import axios from 'axios'
-import { Song } from '../types'
-import { getCachedCover, cacheCover } from '../utils/storage'
+import { Song, Era, SongsApiResponse, CategoriesApiResponse, StatsApiResponse, RadioApiResponse } from '../types'
+import { getCachedCover, cacheCover, getCachedData, cacheData } from '../utils/storage'
 
 const API_BASE = 'https://juicewrldapi.com/juicewrld'
 
@@ -27,34 +27,6 @@ const getCoverArtUrl = (path?: string): string => {
   return `${API_BASE}/files/cover-art/?path=${encodeURIComponent(path)}`
 }
 
-// Transform API response to our Song type
-const transformSong = (data: any): Song => {
-  const path = data.path || data.song?.path || data.file_path
-  const hasAudio = !!path && (path.endsWith('.mp3') || path.endsWith('.wav') || path.endsWith('.m4a'))
-  const songId = String(data.id || data.public_id || data.song?.id || Math.random())
-  
-  // Get image URL - API returns relative URLs like "/assets/youtube.webp"
-  let coverArt = ''
-  const rawImageUrl = data.image_url || data.song?.image_url
-  if (rawImageUrl) {
-    coverArt = getFullUrl(rawImageUrl)
-  }
-  
-  return {
-    id: songId,
-    title: data.name || data.title || data.song?.name || 'Unknown Title',
-    artist: data.credited_artists || data.song?.credited_artists || data.artist || 'Juice WRLD',
-    album: data.era?.name || data.song?.era?.name || data.album || 'Unknown Album',
-    coverArt: coverArt,
-    audioUrl: hasAudio ? `${API_BASE}/files/download/?path=${encodeURIComponent(path)}` : undefined,
-    path: path,
-    duration: parseDuration(data.length || data.song?.length || data.duration),
-    lyrics: data.lyrics || data.song?.lyrics || '',
-    hasLyrics: !!(data.lyrics || data.song?.lyrics),
-    isFavorite: false
-  }
-}
-
 // Parse duration string like "3:59" to seconds
 const parseDuration = (duration: string | number): number => {
   if (typeof duration === 'number') return duration
@@ -65,27 +37,136 @@ const parseDuration = (duration: string | number): number => {
   return 0
 }
 
+// Transform API response to our Song type - WITH ALL METADATA
+const transformSong = (data: any): Song => {
+  const source = data.song || data  // Handle nested song object from radio API
+  const path = source.path || data.path
+  const hasAudio = !!path && (path.endsWith('.mp3') || path.endsWith('.wav') || path.endsWith('.m4a'))
+  const songId = String(source.id || source.public_id || Math.random())
+  
+  // Get image URL - API returns relative URLs like "/assets/youtube.webp"
+  let coverArt = ''
+  const rawImageUrl = source.image_url || data.image_url
+  if (rawImageUrl) {
+    coverArt = getFullUrl(rawImageUrl)
+  }
+  
+  // Parse category - normalize to lowercase
+  const category = source.category?.toLowerCase() || 'unknown'
+  const releaseStatus = category as 'released' | 'unreleased' | 'unsurfaced' | 'recording_session'
+  
+  // Parse release date and year
+  const releaseDate = source.release_date || source.releaseDate
+  let releaseYear: number | undefined
+  if (releaseDate) {
+    const parsed = new Date(releaseDate)
+    if (!isNaN(parsed.getTime())) {
+      releaseYear = parsed.getFullYear()
+    }
+  }
+  // Fallback: try to extract year from era time_frame
+  if (!releaseYear && source.era?.time_frame) {
+    const match = source.era.time_frame.match(/(\d{4})/)
+    if (match) {
+      releaseYear = parseInt(match[1])
+    }
+  }
+  
+  return {
+    // Core identifiers
+    id: songId,
+    public_id: source.public_id,
+    
+    // Basic info
+    title: source.name || source.title || 'Unknown Title',
+    name: source.name,
+    original_key: source.original_key,
+    
+    // Artist info
+    artist: source.credited_artists || 'Juice WRLD',
+    credited_artists: source.credited_artists,
+    producers: source.producers,
+    engineers: source.engineers,
+    
+    // Categorization
+    category: category,
+    era: source.era ? {
+      id: source.era.id,
+      name: source.era.name,
+      description: source.era.description || '',
+      time_frame: source.era.time_frame || '',
+      play_count: source.era.play_count
+    } : undefined,
+    
+    // Album/Project
+    album: source.era?.name || 'Unknown Project',
+    track_titles: source.track_titles,
+    
+    // Media
+    coverArt: coverArt,
+    image_url: rawImageUrl,
+    audioUrl: hasAudio ? `${API_BASE}/files/download/?path=${encodeURIComponent(path)}` : undefined,
+    path: path,
+    
+    // Duration & technical
+    duration: parseDuration(source.length || source.duration),
+    length: source.length,
+    bitrate: source.bitrate,
+    
+    // Content
+    lyrics: source.lyrics || '',
+    hasLyrics: !!(source.lyrics && source.lyrics.length > 10),
+    snippets: source.snippets,
+    
+    // Release info
+    release_date: releaseDate,
+    releaseDate: releaseDate,
+    release_year: releaseYear,
+    release_status: releaseStatus,
+    preview_date: source.preview_date,
+    date_leaked: source.date_leaked,
+    leak_type: source.leak_type,
+    
+    // Recording info
+    recording_locations: source.recording_locations,
+    record_dates: source.record_dates,
+    session_titles: source.session_titles,
+    session_tracking: source.session_tracking,
+    
+    // File info
+    file_names: source.file_names,
+    file_names_array: source.file_names_array,
+    instrumentals: source.instrumentals,
+    instrumental_names: source.instrumental_names,
+    
+    // Additional
+    additional_information: source.additional_information,
+    notes: source.notes,
+    dates: source.dates,
+    
+    // User data
+    isFavorite: false
+  }
+}
+
 // Fetch cover art with multiple fallback strategies
 const fetchCoverWithFallback = async (song: Song): Promise<string> => {
   // Check cache first
-  const cached = getCachedCover(song.id)
+  const cached = getCachedCover(String(song.id))
   if (cached) {
-    console.log('Using cached cover for:', song.title)
     return cached
   }
   
   // Strategy 1: Try the song's image_url (from API)
   if (song.coverArt) {
-    console.log('Trying API image_url for:', song.title, song.coverArt)
-    cacheCover(song.id, song.coverArt)
+    cacheCover(String(song.id), song.coverArt)
     return song.coverArt
   }
   
   // Strategy 2: Try cover-art endpoint if we have path
   if (song.path) {
     const coverUrl = getCoverArtUrl(song.path)
-    console.log('Trying cover-art endpoint for:', song.title, coverUrl)
-    cacheCover(song.id, coverUrl)
+    cacheCover(String(song.id), coverUrl)
     return coverUrl
   }
   
@@ -93,57 +174,135 @@ const fetchCoverWithFallback = async (song: Song): Promise<string> => {
 }
 
 export const juiceApi = {
-  // Get all songs with pagination
-  async getSongs(page = 1, pageSize = 50, category?: string): Promise<{ songs: Song[], count: number, hasMore: boolean }> {
+  // Get all songs with pagination and filtering
+  async getSongs(
+    page = 1, 
+    pageSize = 50, 
+    category?: string,
+    era?: string,
+    search?: string
+  ): Promise<{ songs: Song[], count: number, hasMore: boolean }> {
     try {
       const params: any = { page, page_size: pageSize }
-      if (category) params.category = category
       
-      console.log('Fetching songs with params:', params)
-      const response = await api.get('/songs/', { params })
-      const results = response.data.results || response.data || []
+      // Add category filter - API expects lowercase
+      if (category && category !== 'all') {
+        params.category = category.toLowerCase()
+      }
+      
+      // Add era filter
+      if (era && era !== 'all') {
+        params.era = era
+      }
+      
+      // Add search
+      if (search) {
+        params.search = search
+      }
+      
+      console.log('[API] Fetching songs with params:', params)
+      
+      const response = await api.get<SongsApiResponse>('/songs/', { params })
+      const results = response.data.results || []
       const count = response.data.count || results.length
       
-      console.log(`Got ${results.length} songs from API`)
+      console.log(`[API] Got ${results.length} songs, total: ${count}`)
       
       const songs = results.map(transformSong)
       
       // Fetch cover art for all songs (with fallback)
       const songsWithCovers = await Promise.all(
-        songs.map(async (song: Song) => {
+        songs.map(async (song) => {
           if (!song.coverArt) {
             song.coverArt = await fetchCoverWithFallback(song)
           }
-          console.log(`Song: ${song.title}, Cover: ${song.coverArt || 'NONE'}`)
           return song
         })
       )
       
       return {
         songs: songsWithCovers,
-        count,
+        count: count,
         hasMore: !!response.data.next
       }
     } catch (error) {
-      console.error('API error:', error)
-      return { songs: getMockSongs(), count: 8, hasMore: false }
+      console.error('[API] Error fetching songs:', error)
+      return { songs: [], count: 0, hasMore: false }
+    }
+  },
+
+  // Get categories (Released, Unreleased, etc.)
+  async getCategories(): Promise<{ value: string; label: string }[]> {
+    try {
+      const cached = getCachedData('categories')
+      if (cached) return cached
+      
+      const response = await api.get<CategoriesApiResponse>('/categories/')
+      const categories = response.data.categories || []
+      
+      cacheData('categories', categories)
+      return categories
+    } catch (error) {
+      console.error('[API] Error fetching categories:', error)
+      // Return default categories
+      return [
+        { value: 'released', label: 'Released' },
+        { value: 'unreleased', label: 'Unreleased' },
+        { value: 'unsurfaced', label: 'Unsurfaced' },
+        { value: 'recording_session', label: 'Studio Sessions' }
+      ]
+    }
+  },
+
+  // Get eras (GBGR, DRFL, etc.)
+  async getEras(): Promise<Era[]> {
+    try {
+      const cached = getCachedData('eras')
+      if (cached) return cached
+      
+      const response = await api.get<Era[]>('/eras/')
+      const eras = response.data || []
+      
+      cacheData('eras', eras)
+      return eras
+    } catch (error) {
+      console.error('[API] Error fetching eras:', error)
+      return []
+    }
+  },
+
+  // Get statistics
+  async getStats(): Promise<StatsApiResponse | null> {
+    try {
+      const response = await api.get<StatsApiResponse>('/stats/')
+      return response.data
+    } catch (error) {
+      console.error('[API] Error fetching stats:', error)
+      return null
     }
   },
 
   // Search songs
-  async searchSongs(query: string, page = 1, pageSize = 50): Promise<{ songs: Song[], count: number, hasMore: boolean }> {
+  async searchSongs(
+    query: string, 
+    page = 1, 
+    pageSize = 50,
+    searchType: 'search' | 'searchall' | 'lyrics' = 'search'
+  ): Promise<{ songs: Song[], count: number, hasMore: boolean }> {
     try {
-      console.log('Searching for:', query)
-      const response = await api.get('/songs/', { 
-        params: { search: query, page, page_size: pageSize }
-      })
-      const results = response.data.results || response.data || []
+      console.log('[API] Searching for:', query, 'type:', searchType)
+      
+      const params: any = { page, page_size: pageSize }
+      params[searchType] = query
+      
+      const response = await api.get<SongsApiResponse>('/songs/', { params })
+      const results = response.data.results || []
       
       const songs = results.map(transformSong)
       
       // Fetch cover art
       const songsWithCovers = await Promise.all(
-        songs.map(async (song: Song) => {
+        songs.map(async (song) => {
           if (!song.coverArt) {
             song.coverArt = await fetchCoverWithFallback(song)
           }
@@ -157,26 +316,24 @@ export const juiceApi = {
         hasMore: !!response.data.next
       }
     } catch (error) {
-      console.error('Search error:', error)
-      const mock = getMockSongs().filter(s => 
-        s.title.toLowerCase().includes(query.toLowerCase()) ||
-        s.artist.toLowerCase().includes(query.toLowerCase())
-      )
-      return { songs: mock, count: mock.length, hasMore: false }
+      console.error('[API] Search error:', error)
+      return { songs: [], count: 0, hasMore: false }
     }
   },
 
-  // Get song by ID
+  // Get song by ID with full metadata
   async getSong(id: string): Promise<Song | null> {
     try {
       const response = await api.get(`/songs/${id}/`)
       const song = transformSong(response.data)
+      
       if (!song.coverArt) {
         song.coverArt = await fetchCoverWithFallback(song)
       }
+      
       return song
     } catch (error) {
-      console.error('Get song error:', error)
+      console.error('[API] Get song error:', error)
       return null
     }
   },
@@ -184,17 +341,17 @@ export const juiceApi = {
   // Get random radio song (playable)
   async getRadioSong(): Promise<Song | null> {
     try {
-      const response = await api.get('/radio/random/')
+      const response = await api.get<RadioApiResponse>('/radio/random/')
       const song = transformSong(response.data)
+      
       if (!song.coverArt) {
         song.coverArt = await fetchCoverWithFallback(song)
       }
-      console.log('Radio song cover:', song.coverArt)
+      
       return song
     } catch (error) {
-      console.error('Radio error:', error)
-      const mock = getMockSongs()
-      return mock[Math.floor(Math.random() * mock.length)]
+      console.error('[API] Radio error:', error)
+      return null
     }
   },
 
@@ -208,39 +365,26 @@ export const juiceApi = {
     return songs
   },
 
-  // Get stats
-  async getStats(): Promise<any> {
-    try {
-      const response = await api.get('/stats/')
-      return response.data
-    } catch (error) {
-      return null
-    }
-  },
-
   // Get file info (for checking if file has audio/cover)
   async getFileInfo(path: string): Promise<any> {
     try {
       const response = await api.get('/files/info/', { params: { path } })
       return response.data
     } catch (error) {
+      console.error('[API] Get file info error:', error)
       return null
     }
-  }
-}
+  },
 
-// Mock data fallback
-function getMockSongs(): Song[] {
-  return [
-    { id: '1', title: 'Lucid Dreams', artist: 'Juice WRLD', album: 'Goodbye & Good Riddance', duration: 239, hasLyrics: true },
-    { id: '2', title: 'All Girls Are The Same', artist: 'Juice WRLD', album: 'Goodbye & Good Riddance', duration: 166, hasLyrics: true },
-    { id: '3', title: 'Legends', artist: 'Juice WRLD', album: 'WRLD ON DRUGS', duration: 192, hasLyrics: true },
-    { id: '4', title: 'Robbery', artist: 'Juice WRLD', album: 'Death Race for Love', duration: 240, hasLyrics: true },
-    { id: '5', title: 'Hear Me Calling', artist: 'Juice WRLD', album: 'Death Race for Love', duration: 195, hasLyrics: true },
-    { id: '6', title: 'Bandit', artist: 'Juice WRLD ft. NBA YoungBoy', album: 'Single', duration: 189, hasLyrics: true },
-    { id: '7', title: 'Wasted', artist: 'Juice WRLD ft. Lil Uzi Vert', album: 'Goodbye & Good Riddance', duration: 221, hasLyrics: true },
-    { id: '8', title: 'Lean Wit Me', artist: 'Juice WRLD', album: 'Goodbye & Good Riddance', duration: 178, hasLyrics: true },
-  ]
+  // Quick search by era
+  async searchByEra(eraName: string, page = 1): Promise<{ songs: Song[], count: number }> {
+    return this.getSongs(page, 50, undefined, eraName)
+  },
+
+  // Quick search by category
+  async searchByCategory(category: string, page = 1): Promise<{ songs: Song[], count: number }> {
+    return this.getSongs(page, 50, category)
+  }
 }
 
 export default juiceApi

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import './SplashScreen.css'
+// Import the logo so Vite processes it
+import logoImage from '../../public/LOGO_WITH_NO_BACKGROUND.png'
 
 const LOADING_MESSAGES = [
   'INITIALIZING WRLD...',
@@ -39,7 +41,7 @@ export default function SplashScreen() {
     <div className="splash-screen">
       {/* Background */}
       <div className="splash-bg">
-        <img src="./assets/Splash screen.png" alt="" />
+        <img src="./assets/BackGround_FOR_APP.png" alt="" />
       </div>
       
       {/* Overlay gradient */}
@@ -47,9 +49,9 @@ export default function SplashScreen() {
       
       {/* Content */}
       <div className="splash-content">
-        {/* Logo */}
+        {/* Logo - using imported image */}
         <div className="splash-logo">
-          <img src="./assets/LOGO.png" alt="WRLD" />
+          <img src={logoImage} alt="WRLD" />
         </div>
         
         {/* Loading Section */}

@@ -2,7 +2,14 @@ import { useState, useEffect } from 'react'
 import { HiHeart, HiClock, HiFolder, HiPlus, HiTrash, HiX } from 'react-icons/hi'
 import CoverImage from '../components/CoverImage'
 import { Song } from '../types'
-import { getPlaylists, savePlaylist, deletePlaylist, Playlist } from '../utils/storage'
+import { 
+  getPlaylists, 
+  savePlaylist, 
+  deletePlaylist, 
+  Playlist,
+  getFavorites,
+  getRecentlyPlayed
+} from '../utils/storage'
 import './Library.css'
 
 interface LibraryProps {
@@ -22,26 +29,17 @@ export default function Library({ onSongSelect }: LibraryProps) {
     loadData()
   }, [])
 
-  const loadData = () => {
-    // Load favorites
-    const savedFavs = localStorage.getItem('favorites')
-    if (savedFavs) {
-      try {
-        setFavorites(JSON.parse(savedFavs))
-      } catch (e) {
-        console.error('Failed to parse favorites:', e)
-      }
-    }
+  // Reload data when switching tabs (to catch new favorites/recent)
+  useEffect(() => {
+    loadData()
+  }, [activeTab])
 
-    // Load recently played
-    const savedRecent = localStorage.getItem('recentlyPlayed')
-    if (savedRecent) {
-      try {
-        setRecentlyPlayed(JSON.parse(savedRecent))
-      } catch (e) {
-        console.error('Failed to parse recently played:', e)
-      }
-    }
+  const loadData = () => {
+    // Load favorites using utility
+    setFavorites(getFavorites())
+
+    // Load recently played using utility
+    setRecentlyPlayed(getRecentlyPlayed())
 
     // Load playlists
     setPlaylists(getPlaylists())

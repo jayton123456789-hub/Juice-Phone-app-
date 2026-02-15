@@ -1,0 +1,20 @@
+
+> wrld@0.0.1 build
+> tsc && vite build
+
+src/api/juiceApi.ts(155,33): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'string'.
+  Type 'number' is not assignable to type 'string'.
+src/api/juiceApi.ts(162,16): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'string'.
+  Type 'number' is not assignable to type 'string'.
+src/api/juiceApi.ts(169,16): error TS2345: Argument of type 'string | number' is not assignable to parameter of type 'string'.
+  Type 'number' is not assignable to type 'string'.
+src/App.tsx(100,13): error TS2322: Type 'AudioContext | null' is not assignable to type 'AudioContext'.
+  Type 'null' is not assignable to type 'AudioContext'.
+src/App.tsx(101,13): error TS2322: Type 'MediaElementAudioSourceNode | null' is not assignable to type 'MediaElementAudioSourceNode'.
+  Type 'null' is not assignable to type 'MediaElementAudioSourceNode'.
+src/App.tsx(184,11): error TS2322: Type 'AudioContext | null' is not assignable to type 'AudioContext'.
+  Type 'null' is not assignable to type 'AudioContext'.
+src/App.tsx(185,11): error TS2322: Type 'MediaElementAudioSourceNode | null' is not assignable to type 'MediaElementAudioSourceNode'.
+  Type 'null' is not assignable to type 'MediaElementAudioSourceNode'.
+src/desktop/DesktopLayout.tsx(20,10): error TS6133: 'categories' is declared but its value is never read.
+src/desktop/DesktopLayout.tsx(21,10): error TS6133: 'eras' is declared but its value is never read.

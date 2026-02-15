@@ -65,6 +65,11 @@ export default function Player({
   const [eqPreset, setEqPreset] = useState<keyof typeof EQ_PRESETS>('Flat')
   const [fineVolume, setFineVolume] = useState(volume)
 
+  // Refs for EQ (Web Audio API)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const gainNodeRef = useRef<GainNode | null>(null)
+  const filterNodesRef = useRef<BiquadFilterNode[]>([])
+
   // Check if favorite
   useEffect(() => {
     const favorites = JSON.parse(localStorage.getItem('favorites') || '[]')

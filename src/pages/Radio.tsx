@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { HiPlay, HiPause, HiHeart, HiFire } from 'react-icons/hi'
+import { HiPlay } from 'react-icons/hi'
 import { juiceApi } from '../api/juiceApi'
 import CoverImage from '../components/CoverImage'
 import { Song } from '../types'
@@ -10,7 +10,7 @@ interface RadioProps {
 }
 
 export default function Radio({ onSongSelect }: RadioProps) {
-  const [stations, setStations] = useState([
+  const [stations] = useState([
     { id: 'released', name: 'Released Hits', color: '#1db954', icon: '🎵' },
     { id: 'unreleased', name: 'Unreleased Gems', color: '#ff006e', icon: '💎' },
     { id: 'mix', name: 'WRLD Mix', color: '#8338ec', icon: '🌎' },
@@ -119,7 +119,7 @@ export default function Radio({ onSongSelect }: RadioProps) {
       <div className="coming-up-section">
         <h3>Coming Up</h3>
         <div className="coming-up-list">
-          {previewSongs.map((song, index) => (
+          {previewSongs.map((song) => (
             <div 
               key={song.id} 
               className="coming-up-item"
