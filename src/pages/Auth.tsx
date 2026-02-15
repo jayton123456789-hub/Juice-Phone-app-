@@ -49,7 +49,7 @@ export default function Auth({ onBack, onSuccess }: AuthProps) {
       createdAt: Date.now()
     }
     
-    localStorage.setItem('juiceUser', JSON.stringify(newUser))
+    localStorage.setItem('wrld_user', JSON.stringify(newUser))
     onSuccess(newUser)
   }
 

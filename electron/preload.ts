@@ -6,7 +6,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   close: () => ipcRenderer.send('window-close'),
   minimizeWindow: () => ipcRenderer.send('window-minimize'),
   closeWindow: () => ipcRenderer.send('window-close'),
-  setDesktopMode: (enabled: boolean) => ipcRenderer.send('set-desktop-mode', enabled),
   getDesktopMode: () => ipcRenderer.invoke('get-desktop-mode'),
-  resizeForMode: (isDesktop: boolean) => ipcRenderer.send('resize-for-mode', isDesktop)
+  resetAppState: () => ipcRenderer.invoke('reset-app-state')
 })

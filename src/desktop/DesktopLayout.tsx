@@ -25,7 +25,7 @@ export function DesktopLayout() {
   const [showLyrics, setShowLyrics] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
   const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('juiceUser')
+    const saved = localStorage.getItem('wrld_user') || localStorage.getItem('juiceUser')
     return saved ? JSON.parse(saved) : null
   })
   const [topbarSearchQuery, setTopbarSearchQuery] = useState('')

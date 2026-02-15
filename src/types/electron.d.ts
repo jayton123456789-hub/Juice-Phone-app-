@@ -4,9 +4,8 @@ export interface ElectronAPI {
   close?: () => void
   minimizeWindow?: () => void
   closeWindow?: () => void
-  setDesktopMode?: (enabled: boolean) => void
   getDesktopMode?: () => Promise<boolean>
-  resizeForMode?: (isDesktop: boolean) => void
+  resetAppState?: () => Promise<boolean>
 }
 
 declare global {

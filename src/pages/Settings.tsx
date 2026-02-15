@@ -5,6 +5,7 @@ import { User } from '../types'
 import Equalizer from '../components/Equalizer'
 import KeybindSettings from '../components/KeybindSettings'
 import Auth from './Auth'
+import { clearAllData } from '../utils/storage'
 import './Settings.css'
 
 interface SettingsProps {
@@ -12,8 +13,6 @@ interface SettingsProps {
   onBack: () => void
   onUserChange: (user: User | null) => void
 }
-
-const STORAGE_VERSION = '5.0'
 
 export default function Settings({ user, onBack, onUserChange }: SettingsProps) {
   const [volume, setVolume] = useState(() => {
@@ -36,7 +35,7 @@ export default function Settings({ user, onBack, onUserChange }: SettingsProps) 
   const handleSaveProfile = () => {
     if (user && editName.trim()) {
       const updatedUser = { ...user, displayName: editName.trim() }
-      localStorage.setItem('juiceUser', JSON.stringify(updatedUser))
+      localStorage.setItem('wrld_user', JSON.stringify(updatedUser))
       onUserChange(updatedUser)
       setShowProfileEdit(false)
     }
@@ -44,15 +43,14 @@ export default function Settings({ user, onBack, onUserChange }: SettingsProps) 
 
   // Logout
   const handleLogout = () => {
-    localStorage.removeItem('juiceUser')
+    localStorage.removeItem('wrld_user')
     onUserChange(null)
   }
 
   // Clear all data
   const handleClearData = () => {
     if (confirm('Clear all saved data? This cannot be undone.')) {
-      localStorage.clear()
-      localStorage.setItem('storageVersion', STORAGE_VERSION)
+      clearAllData()
       window.location.reload()
     }
   }

@@ -1,10 +1,12 @@
 // Centralized storage management with versioning and clearing
 
 const STORAGE_VERSION = '5.0'
-const VERSION_KEY = 'juicephone_version'
+const VERSION_KEY = 'wrld_version'
+
+const LEGACY_STORAGE_KEYS = ['juiceUser', 'storageVersion', 'defaultVolume']
 
 export const StorageKeys = {
-  USER: 'juicephone_user',
+  USER: 'wrld_user',
   FAVORITES: 'favorites',
   RECENTLY_PLAYED: 'recentlyPlayed',
   QUEUE: 'queue',
@@ -53,6 +55,16 @@ export function clearAllData(): void {
   Object.values(StorageKeys).forEach(key => {
     localStorage.removeItem(key)
   })
+
+  LEGACY_STORAGE_KEYS.forEach(key => {
+    localStorage.removeItem(key)
+  })
+
+  localStorage.setItem(VERSION_KEY, STORAGE_VERSION)
+  window.electronAPI?.resetAppState?.().catch((error) => {
+    console.error('Failed to reset Electron app state:', error)
+  })
+
   console.log('All data cleared')
 }
 
