@@ -1,4 +1,6 @@
-import { HiX, HiTrash, HiQueueList } from 'react-icons/hi'
+import { HiX, HiTrash } from 'react-icons/hi'
+import { HiQueueList } from 'react-icons/hi2'
+import CoverImage from './CoverImage'
 import { Song } from '../types'
 import './QueuePanel.css'
 
@@ -116,13 +118,11 @@ function QueueItem({ song, isPlaying, isPlayed, onClick }: QueueItemProps) {
       className={`queue-item ${isPlaying ? 'playing' : ''} ${isPlayed ? 'played' : ''}`}
       onClick={onClick}
     >
-      <div className="queue-item-art">
-        {song.coverArt ? (
-          <img src={song.coverArt} alt={song.title} />
-        ) : (
-          <div className="queue-art-placeholder">🎵</div>
-        )}
-      </div>
+      <CoverImage 
+        src={song.coverArt}
+        alt={song.title}
+        size="small"
+      />
       <div className="queue-item-info">
         <h5>{song.title}</h5>
         <p>{song.artist}</p>

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { HiHeart, HiClock, HiFolder, HiPlus, HiTrash, HiPlay, HiX } from 'react-icons/hi'
+import { HiHeart, HiClock, HiFolder, HiPlus, HiTrash, HiX } from 'react-icons/hi'
+import CoverImage from '../components/CoverImage'
 import { Song } from '../types'
-import { getPlaylists, savePlaylist, deletePlaylist, addSongToPlaylist, Playlist } from '../utils/storage'
+import { getPlaylists, savePlaylist, deletePlaylist, Playlist } from '../utils/storage'
 import './Library.css'
 
 interface LibraryProps {
@@ -179,9 +180,11 @@ function FavoritesList({ favorites, onSongSelect }: { favorites: Song[], onSongS
     <div className="library-list">
       {favorites.map((song) => (
         <div key={song.id} className="library-item" onClick={() => onSongSelect(song)}>
-          <div className="lib-cover">
-            {song.coverArt ? <img src={song.coverArt} alt={song.title} /> : <div className="lib-cover-placeholder">🎵</div>}
-          </div>
+          <CoverImage 
+            src={song.coverArt}
+            alt={song.title}
+            size="medium"
+          />
           <div className="lib-info">
             <h4>{song.title}</h4>
             <p>{song.artist}</p>
@@ -201,9 +204,11 @@ function RecentList({ recentlyPlayed, onSongSelect }: { recentlyPlayed: Song[], 
     <div className="library-list">
       {recentlyPlayed.map((song) => (
         <div key={song.id} className="library-item" onClick={() => onSongSelect(song)}>
-          <div className="lib-cover">
-            {song.coverArt ? <img src={song.coverArt} alt={song.title} /> : <div className="lib-cover-placeholder">🎵</div>}
-          </div>
+          <CoverImage 
+            src={song.coverArt}
+            alt={song.title}
+            size="medium"
+          />
           <div className="lib-info">
             <h4>{song.title}</h4>
             <p>{song.artist}</p>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { HiPlay, HiFire, HiClock } from 'react-icons/hi'
 import { juiceApi } from '../api/juiceApi'
+import CoverImage from '../components/CoverImage'
 import { Song, User } from '../types'
 import './Home.css'
 
@@ -130,13 +131,11 @@ export default function Home({ onSongSelect, onRadioPlay, onProfileClick, onSong
                 onClick={() => onSongSelect(song)}
               >
                 <span className="song-number">{index + 1}</span>
-                <div className="song-cover-small">
-                  {song.coverArt ? (
-                    <img src={song.coverArt} alt={song.title} />
-                  ) : (
-                    <div className="cover-placeholder">🎵</div>
-                  )}
-                </div>
+                <CoverImage 
+                  src={song.coverArt}
+                  alt={song.title}
+                  size="small"
+                />
                 <div className="song-info">
                   <h4>{song.title}</h4>
                   <p>{song.artist} • {song.album}</p>
@@ -165,13 +164,11 @@ export default function Home({ onSongSelect, onRadioPlay, onProfileClick, onSong
                 className="recent-item"
                 onClick={() => onSongSelect(song)}
               >
-                <div className="recent-cover">
-                  {song.coverArt ? (
-                    <img src={song.coverArt} alt={song.title} />
-                  ) : (
-                    <div className="cover-placeholder">🎵</div>
-                  )}
-                </div>
+                <CoverImage 
+                  src={song.coverArt}
+                  alt={song.title}
+                  size="large"
+                />
                 <span className="recent-title">{song.title}</span>
               </div>
             ))

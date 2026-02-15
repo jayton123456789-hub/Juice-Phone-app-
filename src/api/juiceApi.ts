@@ -9,10 +9,35 @@ const api = axios.create({
   timeout: 15000
 })
 
+// Get full URL for relative paths
+const getFullUrl = (path: string): string => {
+  if (!path) return ''
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path
+  }
+  if (path.startsWith('/')) {
+    return `https://juicewrldapi.com${path}`
+  }
+  return `${API_BASE}/${path}`
+}
+
 // Get cover art URL for a song path
 const getCoverArtUrl = (path?: string): string => {
   if (!path) return ''
   return `${API_BASE}/files/cover-art/?path=${encodeURIComponent(path)}`
+}
+
+// Check if URL exists (HEAD request)
+const checkUrlExists = async (url: string): Promise<boolean> => {
+  try {
+    const response = await fetch(url, { 
+      method: 'HEAD',
+      mode: 'no-cors' // Allow cross-origin checks
+    })
+    return response.ok || response.status === 0 // status 0 from no-cors means it loaded
+  } catch (e) {
+    return false
+  }
 }
 
 // Transform API response to our Song type
@@ -21,12 +46,11 @@ const transformSong = (data: any): Song => {
   const hasAudio = !!path && (path.endsWith('.mp3') || path.endsWith('.wav') || path.endsWith('.m4a'))
   const songId = String(data.id || data.public_id || data.song?.id || Math.random())
   
-  // Try to get cached cover first
-  let coverArt = data.image_url || data.song?.image_url || ''
-  
-  // If no cover in data but has path, generate cover art URL
-  if (!coverArt && path) {
-    coverArt = getCoverArtUrl(path)
+  // Get image URL - API returns relative URLs like "/assets/youtube.webp"
+  let coverArt = ''
+  const rawImageUrl = data.image_url || data.song?.image_url
+  if (rawImageUrl) {
+    coverArt = getFullUrl(rawImageUrl)
   }
   
   return {
@@ -54,25 +78,28 @@ const parseDuration = (duration: string | number): number => {
   return 0
 }
 
-// Fetch cover art with fallback
-const fetchCoverArt = async (song: Song): Promise<string> => {
-  if (!song.path) return ''
-  
+// Fetch cover art with multiple fallback strategies
+const fetchCoverWithFallback = async (song: Song): Promise<string> => {
   // Check cache first
   const cached = getCachedCover(song.id)
-  if (cached) return cached
+  if (cached) {
+    console.log('Using cached cover for:', song.title)
+    return cached
+  }
   
-  const coverUrl = getCoverArtUrl(song.path)
+  // Strategy 1: Try the song's image_url (from API)
+  if (song.coverArt) {
+    console.log('Trying API image_url for:', song.title, song.coverArt)
+    cacheCover(song.id, song.coverArt)
+    return song.coverArt
+  }
   
-  // Try to fetch and verify the cover exists
-  try {
-    const response = await fetch(coverUrl, { method: 'HEAD' })
-    if (response.ok) {
-      cacheCover(song.id, coverUrl)
-      return coverUrl
-    }
-  } catch (e) {
-    console.log('Cover art not available for:', song.title)
+  // Strategy 2: Try cover-art endpoint if we have path
+  if (song.path) {
+    const coverUrl = getCoverArtUrl(song.path)
+    console.log('Trying cover-art endpoint for:', song.title, coverUrl)
+    cacheCover(song.id, coverUrl)
+    return coverUrl
   }
   
   return ''
@@ -85,18 +112,22 @@ export const juiceApi = {
       const params: any = { page, page_size: pageSize }
       if (category) params.category = category
       
+      console.log('Fetching songs with params:', params)
       const response = await api.get('/songs/', { params })
       const results = response.data.results || response.data || []
       const count = response.data.count || results.length
       
+      console.log(`Got ${results.length} songs from API`)
+      
       const songs = results.map(transformSong)
       
-      // Fetch cover art for all songs
+      // Fetch cover art for all songs (with fallback)
       const songsWithCovers = await Promise.all(
         songs.map(async (song: Song) => {
-          if (!song.coverArt && song.path) {
-            song.coverArt = await fetchCoverArt(song)
+          if (!song.coverArt) {
+            song.coverArt = await fetchCoverWithFallback(song)
           }
+          console.log(`Song: ${song.title}, Cover: ${song.coverArt || 'NONE'}`)
           return song
         })
       )
@@ -107,7 +138,7 @@ export const juiceApi = {
         hasMore: !!response.data.next
       }
     } catch (error) {
-      console.log('API error:', error)
+      console.error('API error:', error)
       return { songs: getMockSongs(), count: 8, hasMore: false }
     }
   },
@@ -115,6 +146,7 @@ export const juiceApi = {
   // Search songs
   async searchSongs(query: string, page = 1, pageSize = 50): Promise<{ songs: Song[], count: number, hasMore: boolean }> {
     try {
+      console.log('Searching for:', query)
       const response = await api.get('/songs/', { 
         params: { search: query, page, page_size: pageSize }
       })
@@ -125,8 +157,8 @@ export const juiceApi = {
       // Fetch cover art
       const songsWithCovers = await Promise.all(
         songs.map(async (song: Song) => {
-          if (!song.coverArt && song.path) {
-            song.coverArt = await fetchCoverArt(song)
+          if (!song.coverArt) {
+            song.coverArt = await fetchCoverWithFallback(song)
           }
           return song
         })
@@ -138,7 +170,7 @@ export const juiceApi = {
         hasMore: !!response.data.next
       }
     } catch (error) {
-      console.log('Search error:', error)
+      console.error('Search error:', error)
       const mock = getMockSongs().filter(s => 
         s.title.toLowerCase().includes(query.toLowerCase()) ||
         s.artist.toLowerCase().includes(query.toLowerCase())
@@ -152,12 +184,12 @@ export const juiceApi = {
     try {
       const response = await api.get(`/songs/${id}/`)
       const song = transformSong(response.data)
-      if (!song.coverArt && song.path) {
-        song.coverArt = await fetchCoverArt(song)
+      if (!song.coverArt) {
+        song.coverArt = await fetchCoverWithFallback(song)
       }
       return song
     } catch (error) {
-      console.log('Get song error:', error)
+      console.error('Get song error:', error)
       return null
     }
   },
@@ -167,12 +199,13 @@ export const juiceApi = {
     try {
       const response = await api.get('/radio/random/')
       const song = transformSong(response.data)
-      if (!song.coverArt && song.path) {
-        song.coverArt = await fetchCoverArt(song)
+      if (!song.coverArt) {
+        song.coverArt = await fetchCoverWithFallback(song)
       }
+      console.log('Radio song cover:', song.coverArt)
       return song
     } catch (error) {
-      console.log('Radio error:', error)
+      console.error('Radio error:', error)
       const mock = getMockSongs()
       return mock[Math.floor(Math.random() * mock.length)]
     }

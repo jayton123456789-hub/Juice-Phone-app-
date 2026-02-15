@@ -1,5 +1,6 @@
 import { HiPlay, HiPause, HiChevronUp } from 'react-icons/hi'
 import { FiSkipBack, FiSkipForward } from 'react-icons/fi'
+import CoverImage from './CoverImage'
 import { Song } from '../types'
 import './MiniPlayer.css'
 
@@ -27,11 +28,11 @@ export default function MiniPlayer({
       <div className="mini-player-content">
         {/* Album Art */}
         <div className={`mini-art ${isPlaying ? 'playing' : ''}`}>
-          {song.coverArt ? (
-            <img src={song.coverArt} alt={song.title} />
-          ) : (
-            <div className="mini-art-placeholder">🎵</div>
-          )}
+          <CoverImage 
+            src={song.coverArt}
+            alt={song.title}
+            size="small"
+          />
         </div>
 
         {/* Song Info */}

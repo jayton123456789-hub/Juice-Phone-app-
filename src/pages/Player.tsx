@@ -5,6 +5,7 @@ import {
 } from 'react-icons/hi2'
 import { FiVolume2, FiVolumeX } from 'react-icons/fi'
 import { FiShuffle, FiRepeat, FiSkipBack, FiSkipForward } from 'react-icons/fi'
+import CoverImage from '../components/CoverImage'
 import { Song } from '../types'
 import './Player.css'
 
@@ -114,19 +115,12 @@ export default function Player({
 
       {/* Album Art */}
       <div className={`album-art-container ${isPlaying && hasAudio ? 'playing' : ''}`}>
-        <div className="album-art">
-          {song.coverArt ? (
-            <img src={song.coverArt} alt={song.title} />
-          ) : (
-            <div className="album-placeholder">
-              <div className="vinyl">
-                <div className="vinyl-label">
-                  <span>🎵</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        <CoverImage 
+          src={song.coverArt}
+          alt={song.title}
+          size="xlarge"
+          className="player-album-art"
+        />
         {!hasAudio && (
           <div className="no-audio-badge">No Audio Available</div>
         )}

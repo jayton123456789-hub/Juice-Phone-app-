@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { HiSearch, HiX } from 'react-icons/hi'
 import { juiceApi } from '../api/juiceApi'
+import CoverImage from '../components/CoverImage'
 import { Song } from '../types'
 import './Search.css'
 
@@ -86,13 +87,11 @@ export default function Search({ onSongSelect }: SearchProps) {
                     className="result-item"
                     onClick={() => onSongSelect(song)}
                   >
-                    <div className="result-cover">
-                      {song.coverArt ? (
-                        <img src={song.coverArt} alt={song.title} />
-                      ) : (
-                        <div className="cover-placeholder-small">🎵</div>
-                      )}
-                    </div>
+                    <CoverImage 
+                      src={song.coverArt}
+                      alt={song.title}
+                      size="small"
+                    />
                     <div className="result-info">
                       <h4>{song.title}</h4>
                       <p>{song.artist} • {song.album}</p>

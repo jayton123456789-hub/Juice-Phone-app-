@@ -14,7 +14,6 @@ export function useAudioPlayer() {
   const [isRepeat, setIsRepeat] = useState(false)
   
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Initialize audio element
   useEffect(() => {
