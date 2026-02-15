@@ -1,69 +1,61 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { 
-  HiChevronDown, HiPlay, HiPause, HiHeart, HiQueueList 
+  HiChevronDown, HiPlay, HiPause, HiHeart,
+  HiQueueList, HiVolumeUp, HiVolumeOff
 } from 'react-icons/hi2'
-import { FiShuffle, FiRepeat, FiVolume2 } from 'react-icons/fi'
+import { FiShuffle, FiRepeat, FiSkipBack, FiSkipForward } from 'react-icons/fi'
 import { Song } from '../types'
 import './Player.css'
 
 interface PlayerProps {
   song: Song
   isPlaying: boolean
-  setIsPlaying: (playing: boolean) => void
+  currentTime: number
+  duration: number
+  volume: number
+  hasNext: boolean
+  hasPrevious: boolean
+  onTogglePlay: () => void
+  onNext: () => void
+  onPrevious: () => void
+  onSeek: (time: number) => void
+  onVolumeChange: (volume: number) => void
   onClose: () => void
 }
 
-export default function Player({ song, isPlaying, setIsPlaying, onClose }: PlayerProps) {
-  const [progress, setProgress] = useState(0)
-  const [duration] = useState(237) // Mock duration in seconds
-  const [currentTime, setCurrentTime] = useState(0)
-  const [volume, setVolume] = useState(80)
-  const [isShuffle, setIsShuffle] = useState(false)
-  const [isRepeat, setIsRepeat] = useState(false)
+export default function Player({
+  song,
+  isPlaying,
+  currentTime,
+  duration,
+  volume,
+  hasNext,
+  hasPrevious,
+  onTogglePlay,
+  onNext,
+  onPrevious,
+  onSeek,
+  onVolumeChange,
+  onClose
+}: PlayerProps) {
   const [isFavorite, setIsFavorite] = useState(false)
   const [showLyrics, setShowLyrics] = useState(false)
-  const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [isShuffle, setIsShuffle] = useState(false)
+  const [isRepeat, setIsRepeat] = useState(false)
+  const [showVolume, setShowVolume] = useState(false)
+
+  // Check if favorite
+  useEffect(() => {
+    const favorites = JSON.parse(localStorage.getItem('favorites') || '[]')
+    setIsFavorite(favorites.some((f: Song) => f.id === song.id))
+  }, [song])
 
   // Save to recently played
   useEffect(() => {
     const recent = JSON.parse(localStorage.getItem('recentlyPlayed') || '[]')
     const updated = [song, ...recent.filter((s: Song) => s.id !== song.id)].slice(0, 20)
     localStorage.setItem('recentlyPlayed', JSON.stringify(updated))
-
-    // Check if favorite
-    const favorites = JSON.parse(localStorage.getItem('favorites') || '[]')
-    setIsFavorite(favorites.some((f: Song) => f.id === song.id))
   }, [song])
-
-  // Playback timer
-  useEffect(() => {
-    if (isPlaying) {
-      progressInterval.current = setInterval(() => {
-        setCurrentTime(prev => {
-          if (prev >= duration) {
-            setIsPlaying(false)
-            return 0
-          }
-          setProgress((prev + 1) / duration * 100)
-          return prev + 1
-        })
-      }, 1000)
-    } else {
-      if (progressInterval.current) {
-        clearInterval(progressInterval.current)
-      }
-    }
-
-    return () => {
-      if (progressInterval.current) {
-        clearInterval(progressInterval.current)
-      }
-    }
-  }, [isPlaying, duration, setIsPlaying])
-
-  const togglePlay = () => {
-    setIsPlaying(!isPlaying)
-  }
 
   const toggleFavorite = () => {
     const favorites = JSON.parse(localStorage.getItem('favorites') || '[]')
@@ -78,17 +70,21 @@ export default function Player({ song, isPlaying, setIsPlaying, onClose }: Playe
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const x = e.clientX - rect.left
-    const percentage = x / rect.width
-    const newTime = percentage * duration
-    setCurrentTime(newTime)
-    setProgress(percentage * 100)
+    const percentage = Math.max(0, Math.min(1, x / rect.width))
+    const newTime = percentage * (duration || 1)
+    onSeek(newTime)
   }
 
   const formatTime = (seconds: number) => {
+    if (!seconds || isNaN(seconds)) return '0:00'
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
+
+  const progress = duration ? (currentTime / duration) * 100 : 0
+  const hasAudio = !!song.audioUrl
+  const hasLyrics = song.hasLyrics && song.lyrics
 
   return (
     <div className="player-page">
@@ -111,7 +107,7 @@ export default function Player({ song, isPlaying, setIsPlaying, onClose }: Playe
       </div>
 
       {/* Album Art */}
-      <div className={`album-art-container ${isPlaying ? 'playing' : ''}`}>
+      <div className={`album-art-container ${isPlaying && hasAudio ? 'playing' : ''}`}>
         <div className="album-art">
           {song.coverArt ? (
             <img src={song.coverArt} alt={song.title} />
@@ -125,6 +121,9 @@ export default function Player({ song, isPlaying, setIsPlaying, onClose }: Playe
             </div>
           )}
         </div>
+        {!hasAudio && (
+          <div className="no-audio-badge">No Audio Available</div>
+        )}
       </div>
 
       {/* Song Info */}
@@ -132,7 +131,7 @@ export default function Player({ song, isPlaying, setIsPlaying, onClose }: Playe
         <div className="song-title-row">
           <div className="song-text">
             <h2>{song.title}</h2>
-            <p>{song.artist}</p>
+            <p>{song.artist} {song.album && `• ${song.album}`}</p>
           </div>
           <button 
             className={`favorite-btn ${isFavorite ? 'active' : ''}`}
@@ -152,7 +151,7 @@ export default function Player({ song, isPlaying, setIsPlaying, onClose }: Playe
         </div>
         <div className="time-display">
           <span>{formatTime(currentTime)}</span>
-          <span>{formatTime(duration)}</span>
+          <span>{formatTime(duration || song.duration || 0)}</span>
         </div>
       </div>
 
@@ -161,29 +160,42 @@ export default function Player({ song, isPlaying, setIsPlaying, onClose }: Playe
         <button 
           className={`control-btn secondary ${isShuffle ? 'active' : ''}`}
           onClick={() => setIsShuffle(!isShuffle)}
+          title="Shuffle"
         >
           <FiShuffle />
         </button>
 
-        <button className="control-btn">
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
-          </svg>
+        <button 
+          className={`control-btn ${!hasPrevious ? 'disabled' : ''}`}
+          onClick={onPrevious}
+          disabled={!hasPrevious}
+          title="Previous"
+        >
+          <FiSkipBack />
         </button>
 
-        <button className="control-btn play-btn" onClick={togglePlay}>
+        <button 
+          className={`control-btn play-btn ${!hasAudio ? 'disabled' : ''}`} 
+          onClick={onTogglePlay}
+          disabled={!hasAudio}
+          title={isPlaying ? 'Pause' : 'Play'}
+        >
           {isPlaying ? <HiPause /> : <HiPlay />}
         </button>
 
-        <button className="control-btn">
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
-          </svg>
+        <button 
+          className={`control-btn ${!hasNext ? 'disabled' : ''}`}
+          onClick={onNext}
+          disabled={!hasNext}
+          title="Next"
+        >
+          <FiSkipForward />
         </button>
 
         <button 
           className={`control-btn secondary ${isRepeat ? 'active' : ''}`}
           onClick={() => setIsRepeat(!isRepeat)}
+          title="Repeat"
         >
           <FiRepeat />
         </button>
@@ -192,35 +204,45 @@ export default function Player({ song, isPlaying, setIsPlaying, onClose }: Playe
       {/* Volume & Lyrics Toggle */}
       <div className="extra-controls">
         <div className="volume-control">
-          <FiVolume2 />
-          <div className="volume-slider">
-            <input 
-              type="range" 
-              min="0" 
-              max="100" 
-              value={volume}
-              onChange={(e) => setVolume(Number(e.target.value))}
-            />
-          </div>
+          <button 
+            className="volume-btn"
+            onClick={() => setShowVolume(!showVolume)}
+          >
+            {volume === 0 ? <HiVolumeOff /> : <HiVolumeUp />}
+          </button>
+          {showVolume && (
+            <div className="volume-slider-popup">
+              <input 
+                type="range" 
+                min="0" 
+                max="100" 
+                value={volume}
+                onChange={(e) => onVolumeChange(Number(e.target.value))}
+              />
+            </div>
+          )}
         </div>
-        <button 
-          className={`lyrics-toggle ${showLyrics ? 'active' : ''}`}
-          onClick={() => setShowLyrics(!showLyrics)}
-        >
-          Lyrics
-        </button>
+        
+        {hasLyrics && (
+          <button 
+            className={`lyrics-toggle ${showLyrics ? 'active' : ''}`}
+            onClick={() => setShowLyrics(!showLyrics)}
+          >
+            Lyrics
+          </button>
+        )}
       </div>
 
       {/* Lyrics Panel */}
-      {showLyrics && (
+      {showLyrics && hasLyrics && (
         <div className="lyrics-panel">
           <div className="lyrics-content">
-            <p className="lyric-line past">I still see your shadows in my room</p>
-            <p className="lyric-line past">Can't take back the love that I gave you</p>
-            <p className="lyric-line active">It's to the point where I love and I hate you</p>
-            <p className="lyric-line">And I cannot change you, so I must replace you</p>
-            <p className="lyric-line">Easier said than done</p>
-            <p className="lyric-line">I thought you were the one</p>
+            <h4>Lyrics</h4>
+            <div className="lyrics-text">
+              {song.lyrics?.split('\n').map((line, i) => (
+                <p key={i} className="lyric-line">{line}</p>
+              ))}
+            </div>
           </div>
         </div>
       )}

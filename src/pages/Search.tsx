@@ -12,33 +12,29 @@ export default function Search({ onSongSelect }: SearchProps) {
   const [query, setQuery] = useState('')
   const [songs, setSongs] = useState<Song[]>([])
   const [loading, setLoading] = useState(false)
-  const [recentSearches, setRecentSearches] = useState<string[]>([])
-
-  useEffect(() => {
-    const saved = localStorage.getItem('recentSearches')
-    if (saved) {
-      setRecentSearches(JSON.parse(saved))
-    }
-  }, [])
+  const [hasSearched, setHasSearched] = useState(false)
 
   const search = useCallback(async (searchQuery: string) => {
     if (!searchQuery.trim()) {
       setSongs([])
+      setHasSearched(false)
       return
     }
 
     setLoading(true)
-    const results = await juiceApi.searchSongs(searchQuery)
-    setSongs(results)
-    setLoading(false)
-
-    // Save to recent searches
-    if (!recentSearches.includes(searchQuery)) {
-      const updated = [searchQuery, ...recentSearches].slice(0, 5)
-      setRecentSearches(updated)
-      localStorage.setItem('recentSearches', JSON.stringify(updated))
+    setHasSearched(true)
+    
+    try {
+      const result = await juiceApi.searchSongs(searchQuery, 1, 50)
+      console.log('Search results:', result.songs.length)
+      setSongs(result.songs)
+    } catch (error) {
+      console.error('Search error:', error)
+      setSongs([])
+    } finally {
+      setLoading(false)
     }
-  }, [recentSearches])
+  }, [])
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -50,12 +46,7 @@ export default function Search({ onSongSelect }: SearchProps) {
   const clearSearch = () => {
     setQuery('')
     setSongs([])
-  }
-
-  const removeRecentSearch = (term: string) => {
-    const updated = recentSearches.filter(s => s !== term)
-    setRecentSearches(updated)
-    localStorage.setItem('recentSearches', JSON.stringify(updated))
+    setHasSearched(false)
   }
 
   return (
@@ -66,7 +57,7 @@ export default function Search({ onSongSelect }: SearchProps) {
         <HiSearch className="search-icon" />
         <input
           type="text"
-          placeholder="Songs, artists, albums..."
+          placeholder="Search songs, artists, albums..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           autoFocus
@@ -80,11 +71,14 @@ export default function Search({ onSongSelect }: SearchProps) {
 
       {loading ? (
         <div className="loading-state">Searching...</div>
-      ) : query ? (
+      ) : hasSearched ? (
         <div className="search-results">
           {songs.length > 0 ? (
             <>
-              <h3>Songs</h3>
+              <div className="results-header">
+                <h3>Songs</h3>
+                <span className="results-count">{songs.length} results</span>
+              </div>
               <div className="result-list">
                 {songs.map((song) => (
                   <div 
@@ -103,53 +97,35 @@ export default function Search({ onSongSelect }: SearchProps) {
                       <h4>{song.title}</h4>
                       <p>{song.artist} • {song.album}</p>
                     </div>
+                    {song.duration && (
+                      <span className="song-duration">
+                        {formatDuration(song.duration)}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
             </>
           ) : (
             <div className="no-results">
-              <p>No results found for "{query}"</p>
+              <p>No songs found for "{query}"</p>
+              <span className="no-results-hint">Try different keywords</span>
             </div>
           )}
         </div>
       ) : (
-        <div className="recent-searches">
-          <h3>Recent Searches</h3>
-          {recentSearches.length > 0 ? (
-            <div className="recent-list">
-              {recentSearches.map((term) => (
-                <div key={term} className="recent-item-search">
-                  <span onClick={() => setQuery(term)}>{term}</span>
-                  <button onClick={() => removeRecentSearch(term)}>
-                    <HiX />
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="empty-text">No recent searches</p>
-          )}
-
-          <div className="browse-categories">
-            <h3>Browse Categories</h3>
-            <div className="category-grid">
-              <CategoryCard title="Hip Hop" color="#ff006e" />
-              <CategoryCard title="Emo Rap" color="#8338ec" />
-              <CategoryCard title="Pop" color="#00f5ff" />
-              <CategoryCard title="Rock" color="#ff4d00" />
-            </div>
-          </div>
+        <div className="search-empty">
+          <div className="search-icon-large">🔍</div>
+          <h3>Find your favorite songs</h3>
+          <p>Search by song title, artist, or album name</p>
         </div>
       )}
     </div>
   )
 }
 
-function CategoryCard({ title, color }: { title: string; color: string }) {
-  return (
-    <div className="category-card" style={{ background: color }}>
-      <span>{title}</span>
-    </div>
-  )
+function formatDuration(seconds: number): string {
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${mins}:${secs.toString().padStart(2, '0')}`
 }

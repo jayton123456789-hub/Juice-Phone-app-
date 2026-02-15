@@ -5,14 +5,23 @@ export interface Song {
   album?: string
   coverArt?: string
   audioUrl?: string
+  path?: string
   duration?: number
-  lyrics?: LyricLine[]
+  lyrics?: string
+  hasLyrics?: boolean
   isFavorite?: boolean
 }
 
-export interface LyricLine {
-  time: number
-  text: string
+export interface QueueItem extends Song {
+  queueId: string
+}
+
+export interface User {
+  id: string
+  username: string
+  displayName: string
+  avatar?: string
+  createdAt: number
 }
 
 export interface Album {
@@ -37,5 +46,5 @@ export interface Playlist {
   description?: string
   coverArt?: string
   songs: Song[]
-  createdAt: Date
+  createdAt: number
 }

@@ -1,128 +1,144 @@
 import axios from 'axios'
-import { Song, Album, Artist } from '../types'
+import { Song, QueueItem } from '../types'
 
-const API_BASE = 'https://juicewrldapi.com/api'
+const API_BASE = 'https://juicewrldapi.com/juicewrld'
 
 const api = axios.create({
   baseURL: API_BASE,
-  timeout: 10000
+  timeout: 15000
 })
 
 // Transform API response to our Song type
-const transformSong = (data: any): Song => ({
-  id: data.id || data._id || String(Math.random()),
-  title: data.title || data.name || 'Unknown Title',
-  artist: data.artist?.name || data.artist || 'Juice WRLD',
-  album: data.album?.name || data.album,
-  coverArt: data.album?.image || data.coverArt || data.image,
-  audioUrl: data.audioUrl || data.audio,
-  duration: data.duration || data.length,
-})
+const transformSong = (data: any): Song => {
+  const path = data.path || data.song?.path
+  const hasAudio = !!path && path.endsWith('.mp3')
+  
+  return {
+    id: String(data.id || data.public_id || Math.random()),
+    title: data.name || data.title || 'Unknown Title',
+    artist: data.credited_artists || data.song?.credited_artists || 'Juice WRLD',
+    album: data.era?.name || data.song?.era?.name || 'Unknown Album',
+    coverArt: data.image_url || data.song?.image_url || '',
+    audioUrl: hasAudio ? `${API_BASE}/files/download/?path=${encodeURIComponent(path)}` : undefined,
+    path: path,
+    duration: parseDuration(data.length || data.song?.length),
+    lyrics: data.lyrics || data.song?.lyrics || '',
+    hasLyrics: !!(data.lyrics || data.song?.lyrics),
+    isFavorite: false
+  }
+}
+
+// Parse duration string like "3:59" to seconds
+const parseDuration = (duration: string): number => {
+  if (!duration) return 0
+  const parts = duration.split(':').map(Number)
+  if (parts.length === 2) return parts[0] * 60 + parts[1]
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
+  return 0
+}
 
 export const juiceApi = {
-  // Get all songs
-  async getSongs(limit = 50): Promise<Song[]> {
+  // Get all songs with pagination
+  async getSongs(page = 1, pageSize = 50, category?: string): Promise<{ songs: Song[], count: number, hasMore: boolean }> {
     try {
-      const response = await api.get('/songs', { params: { limit }, timeout: 5000 })
-      const songs = (response.data?.songs || response.data || [])
-      if (songs.length === 0) return getMockSongs()
-      return songs.map(transformSong)
+      const params: any = { page, page_size: pageSize }
+      if (category) params.category = category
+      
+      const response = await api.get('/songs/', { params })
+      const results = response.data.results || response.data || []
+      const count = response.data.count || results.length
+      
+      return {
+        songs: results.map(transformSong),
+        count,
+        hasMore: !!response.data.next
+      }
     } catch (error) {
-      console.log('API error, using mock data:', error)
-      return getMockSongs()
+      console.log('API error:', error)
+      return { songs: getMockSongs(), count: 8, hasMore: false }
     }
   },
 
   // Search songs
-  async searchSongs(query: string): Promise<Song[]> {
+  async searchSongs(query: string, page = 1, pageSize = 50): Promise<{ songs: Song[], count: number, hasMore: boolean }> {
     try {
-      const response = await api.get('/search', { params: { q: query } })
-      return (response.data.songs || response.data || []).map(transformSong)
+      const response = await api.get('/songs/', { 
+        params: { search: query, page, page_size: pageSize }
+      })
+      const results = response.data.results || response.data || []
+      
+      return {
+        songs: results.map(transformSong),
+        count: response.data.count || results.length,
+        hasMore: !!response.data.next
+      }
     } catch (error) {
-      console.error('Error searching songs:', error)
-      return getMockSongs().filter(s => 
-        s.title.toLowerCase().includes(query.toLowerCase())
+      console.log('Search error:', error)
+      const mock = getMockSongs().filter(s => 
+        s.title.toLowerCase().includes(query.toLowerCase()) ||
+        s.artist.toLowerCase().includes(query.toLowerCase())
       )
+      return { songs: mock, count: mock.length, hasMore: false }
     }
   },
 
   // Get song by ID
   async getSong(id: string): Promise<Song | null> {
     try {
-      const response = await api.get(`/songs/${id}`)
+      const response = await api.get(`/songs/${id}/`)
       return transformSong(response.data)
     } catch (error) {
-      console.error('Error fetching song:', error)
+      console.log('Get song error:', error)
       return null
     }
   },
 
-  // Get song lyrics
-  async getLyrics(songId: string): Promise<{ time: number; text: string }[]> {
+  // Get random radio song (playable)
+  async getRadioSong(): Promise<Song | null> {
     try {
-      const response = await api.get(`/songs/${songId}/lyrics`)
-      return response.data.lyrics || []
+      const response = await api.get('/radio/random/')
+      return transformSong(response.data)
     } catch (error) {
-      console.error('Error fetching lyrics:', error)
-      return getMockLyrics()
+      console.log('Radio error:', error)
+      const mock = getMockSongs()
+      return mock[Math.floor(Math.random() * mock.length)]
     }
   },
 
-  // Get albums
-  async getAlbums(): Promise<Album[]> {
-    try {
-      const response = await api.get('/albums')
-      return response.data.albums || response.data || []
-    } catch (error) {
-      console.error('Error fetching albums:', error)
-      return getMockAlbums()
-    }
+  // Get cover art URL for a song
+  getCoverArtUrl(path: string): string {
+    if (!path) return ''
+    return `${API_BASE}/files/cover-art/?path=${encodeURIComponent(path)}`
   },
 
-  // Get artists
-  async getArtists(): Promise<Artist[]> {
+  // Stream audio URL
+  getAudioUrl(path: string): string {
+    if (!path) return ''
+    return `${API_BASE}/files/download/?path=${encodeURIComponent(path)}`
+  },
+
+  // Get stats
+  async getStats(): Promise<any> {
     try {
-      const response = await api.get('/artists')
-      return response.data.artists || response.data || []
+      const response = await api.get('/stats/')
+      return response.data
     } catch (error) {
-      console.error('Error fetching artists:', error)
-      return []
+      return null
     }
   }
 }
 
-// Mock data for when API fails
+// Mock data fallback
 function getMockSongs(): Song[] {
   return [
-    { id: '1', title: 'Lucid Dreams', artist: 'Juice WRLD', album: 'Goodbye & Good Riddance' },
-    { id: '2', title: 'All Girls Are The Same', artist: 'Juice WRLD', album: 'Goodbye & Good Riddance' },
-    { id: '3', title: 'Legends', artist: 'Juice WRLD', album: 'Future & Juice WRLD Present... WRLD ON DRUGS' },
-    { id: '4', title: 'Robbery', artist: 'Juice WRLD', album: 'Death Race for Love' },
-    { id: '5', title: 'Hear Me Calling', artist: 'Juice WRLD', album: 'Death Race for Love' },
-    { id: '6', title: 'Bandit', artist: 'Juice WRLD', album: 'Single' },
-    { id: '7', title: 'Wasted', artist: 'Juice WRLD', album: 'Goodbye & Good Riddance' },
-    { id: '8', title: 'Lean Wit Me', artist: 'Juice WRLD', album: 'Goodbye & Good Riddance' },
-  ]
-}
-
-function getMockLyrics() {
-  return [
-    { time: 0, text: "I still see your shadows in my room" },
-    { time: 4, text: "Can't take back the love that I gave you" },
-    { time: 8, text: "It's to the point where I love and I hate you" },
-    { time: 12, text: "And I cannot change you, so I must replace you, oh" },
-    { time: 17, text: "Easier said than done" },
-    { time: 19, text: "I thought you were the one" },
-    { time: 21, text: "Listenin' to my heart instead of my head" },
-  ]
-}
-
-function getMockAlbums(): Album[] {
-  return [
-    { id: '1', name: 'Goodbye & Good Riddance', artist: 'Juice WRLD', coverArt: '', year: '2018' },
-    { id: '2', name: 'Death Race for Love', artist: 'Juice WRLD', coverArt: '', year: '2019' },
-    { id: '3', name: 'Legends Never Die', artist: 'Juice WRLD', coverArt: '', year: '2020' },
-    { id: '4', name: 'Fighting Demons', artist: 'Juice WRLD', coverArt: '', year: '2021' },
+    { id: '1', title: 'Lucid Dreams', artist: 'Juice WRLD', album: 'Goodbye & Good Riddance', duration: 239, hasLyrics: true },
+    { id: '2', title: 'All Girls Are The Same', artist: 'Juice WRLD', album: 'Goodbye & Good Riddance', duration: 166, hasLyrics: true },
+    { id: '3', title: 'Legends', artist: 'Juice WRLD', album: 'WRLD ON DRUGS', duration: 192, hasLyrics: true },
+    { id: '4', title: 'Robbery', artist: 'Juice WRLD', album: 'Death Race for Love', duration: 240, hasLyrics: true },
+    { id: '5', title: 'Hear Me Calling', artist: 'Juice WRLD', album: 'Death Race for Love', duration: 195, hasLyrics: true },
+    { id: '6', title: 'Bandit', artist: 'Juice WRLD ft. NBA YoungBoy', album: 'Single', duration: 189, hasLyrics: true },
+    { id: '7', title: 'Wasted', artist: 'Juice WRLD ft. Lil Uzi Vert', album: 'Goodbye & Good Riddance', duration: 221, hasLyrics: true },
+    { id: '8', title: 'Lean Wit Me', artist: 'Juice WRLD', album: 'Goodbye & Good Riddance', duration: 178, hasLyrics: true },
   ]
 }
 

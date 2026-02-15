@@ -5,13 +5,34 @@ import Home from './pages/Home'
 import Search from './pages/Search'
 import Library from './pages/Library'
 import Player from './pages/Player'
+import Auth from './pages/Auth'
+import Profile from './pages/Profile'
+import { useAudioPlayer } from './hooks/useAudioPlayer'
+import { useUser } from './hooks/useUser'
 import { Song } from './types'
 import './App.css'
 
 function App() {
-  const [currentSong, setCurrentSong] = useState<Song | null>(null)
-  const [isPlaying, setIsPlaying] = useState(false)
   const [showPlayer, setShowPlayer] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
+  const [allSongs, setAllSongs] = useState<Song[]>([])
+  
+  const { user, isLoading, isAuthenticated } = useUser()
+  const {
+    currentSong,
+    queue,
+    currentIndex,
+    isPlaying,
+    currentTime,
+    duration,
+    volume,
+    playSongWithQueue,
+    togglePlay,
+    playNext,
+    playPrevious,
+    seek,
+    setAudioVolume
+  } = useAudioPlayer()
 
   // Prevent right-click context menu (mobile-like behavior)
   useEffect(() => {
@@ -32,9 +53,40 @@ function App() {
   }, [])
 
   const handleSongSelect = (song: Song) => {
-    setCurrentSong(song)
-    setIsPlaying(true)
+    playSongWithQueue(song, allSongs.length > 0 ? allSongs : [song])
     setShowPlayer(true)
+  }
+
+  const handleClosePlayer = () => {
+    setShowPlayer(false)
+  }
+
+  const handleProfileClick = () => {
+    setShowProfile(!showProfile)
+  }
+
+  // Show auth screen if not authenticated
+  if (isLoading) {
+    return (
+      <div className="app">
+        <div className="phone-frame">
+          <div className="loading-screen">
+            <div className="spinner"></div>
+            <p>Loading...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="app">
+        <div className="phone-frame">
+          <Auth />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -50,19 +102,41 @@ function App() {
         </div>
         
         <div className="app-content">
-          {showPlayer && currentSong ? (
+          {showProfile ? (
+            <Profile onClose={() => setShowProfile(false)} />
+          ) : showPlayer && currentSong ? (
             <Player 
-              song={currentSong} 
-              isPlaying={isPlaying} 
-              setIsPlaying={setIsPlaying}
-              onClose={() => setShowPlayer(false)}
+              song={currentSong}
+              isPlaying={isPlaying}
+              currentTime={currentTime}
+              duration={duration}
+              volume={volume}
+              hasNext={currentIndex < queue.length - 1}
+              hasPrevious={currentIndex > 0}
+              onTogglePlay={togglePlay}
+              onNext={playNext}
+              onPrevious={playPrevious}
+              onSeek={seek}
+              onVolumeChange={setAudioVolume}
+              onClose={handleClosePlayer}
             />
           ) : (
             <Router>
               <Routes>
-                <Route path="/" element={<Home onSongSelect={handleSongSelect} />} />
-                <Route path="/search" element={<Search onSongSelect={handleSongSelect} />} />
-                <Route path="/library" element={<Library onSongSelect={handleSongSelect} />} />
+                <Route path="/" element={
+                  <Home 
+                    onSongSelect={handleSongSelect} 
+                    onProfileClick={handleProfileClick}
+                    onSongsLoaded={setAllSongs}
+                    user={user}
+                  />
+                } />
+                <Route path="/search" element={
+                  <Search onSongSelect={handleSongSelect} />
+                } />
+                <Route path="/library" element={
+                  <Library onSongSelect={handleSongSelect} />
+                } />
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
               
@@ -77,7 +151,7 @@ function App() {
 
         {/* Window controls for desktop */}
         <div className="window-controls">
-          <button className="win-btn minimize" onClick={() => window.electronAPI?.minimize?.() || console.log('minimize')}>−</button>
+          <button className="win-btn minimize" onClick={() => window.electronAPI?.minimize?.()}>−</button>
           <button className="win-btn close" onClick={() => window.electronAPI?.close?.() || window.close()}>×</button>
         </div>
       </div>
@@ -86,7 +160,8 @@ function App() {
 }
 
 function NavItem({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) {
-  const isActive = window.location.hash === `#${to}` || (to === '/' && window.location.hash === '')
+  const hash = window.location.hash || '#'
+  const isActive = hash === `#${to}` || (to === '/' && hash === '#')
   return (
     <a href={`#${to}`} className={`nav-item ${isActive ? 'active' : ''}`}>
       {icon}
