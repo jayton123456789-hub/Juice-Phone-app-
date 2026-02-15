@@ -223,28 +223,99 @@
   text-overflow: ellipsis;
 }
 
-.play-btn {
-  width: 32px;
-  height: 32px;
+/* New Rounded Play Button */
+.play-btn-round {
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: var(--primary);
+  background: linear-gradient(135deg, var(--primary), #00cc6a);
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
 }
 
-.play-btn:hover {
-  transform: scale(1.1);
-  box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+.play-btn-round:hover {
+  transform: scale(1.15) rotate(5deg);
+  box-shadow: 0 6px 25px rgba(0, 255, 136, 0.5);
 }
 
-.play-btn svg {
+.play-btn-round:active {
+  transform: scale(0.95);
+}
+
+.play-btn-round svg {
   font-size: 18px;
   color: #000;
   margin-left: 2px;
+  transition: transform 0.2s;
+}
+
+.play-btn-round:hover svg {
+  transform: scale(1.1);
+}
+
+/* See All Button */
+.see-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.see-all-btn:hover {
+  background: rgba(0, 255, 136, 0.1);
+  gap: 8px;
+}
+
+.see-all-btn svg {
+  transition: transform 0.2s;
+}
+
+.see-all-btn:hover svg {
+  transform: translateX(3px);
+}
+
+/* All Songs View */
+.all-songs-header {
+  position: sticky;
+  top: 0;
+  background: rgba(10, 10, 10, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 15px 0;
+  margin-bottom: 10px;
+  z-index: 10;
+}
+
+.back-btn {
+  background: var(--bg-card);
+  border: none;
+  color: var(--text-primary);
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.back-btn:hover {
+  background: var(--bg-elevated);
+}
+
+.song-list.all-songs {
+  padding-bottom: 100px;
 }
 
 /* Recently Played Grid */

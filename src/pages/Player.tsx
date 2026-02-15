@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   HiChevronDown, HiPlay, HiPause, HiHeart,
-  HiQueueList
+  HiQueueList, HiVolumeUp, HiCog
 } from 'react-icons/hi2'
-import { FiVolume2, FiVolumeX } from 'react-icons/fi'
 import { FiShuffle, FiRepeat, FiSkipBack, FiSkipForward } from 'react-icons/fi'
 import CoverImage from '../components/CoverImage'
 import { Song } from '../types'
@@ -25,6 +24,14 @@ interface PlayerProps {
   onVolumeChange: (volume: number) => void
   onClose: () => void
   onOpenQueue: () => void
+}
+
+const EQ_PRESETS = {
+  'Flat': { bass: 0, mid: 0, treble: 0 },
+  'Bass Boost': { bass: 12, mid: 0, treble: 2 },
+  'Deep Bass': { bass: 16, mid: -2, treble: 0 },
+  'Vocal': { bass: -4, mid: 8, treble: 4 },
+  'Electronic': { bass: 8, mid: 0, treble: 8 }
 }
 
 export default function Player({
@@ -49,6 +56,14 @@ export default function Player({
   const [isShuffle, setIsShuffle] = useState(false)
   const [isRepeat, setIsRepeat] = useState(false)
   const [showVolume, setShowVolume] = useState(false)
+  const [showEQ, setShowEQ] = useState(false)
+  const [volumeBoost, setVolumeBoost] = useState(false)
+  const [eqPreset, setEqPreset] = useState<keyof typeof EQ_PRESETS>('Flat')
+  const [fineVolume, setFineVolume] = useState(volume)
+  
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const gainNodeRef = useRef<GainNode | null>(null)
+  const filterNodesRef = useRef<BiquadFilterNode[]>([])
 
   // Check if favorite
   useEffect(() => {
@@ -62,6 +77,57 @@ export default function Player({
     const updated = [song, ...recent.filter((s: Song) => s.id !== song.id)].slice(0, 20)
     localStorage.setItem('recentlyPlayed', JSON.stringify(updated))
   }, [song])
+
+  // Initialize audio context for EQ
+  useEffect(() => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+      
+      // Create gain node for volume boost
+      gainNodeRef.current = audioContextRef.current.createGain()
+      gainNodeRef.current.connect(audioContextRef.current.destination)
+      
+      // Create EQ filters
+      const bass = audioContextRef.current.createBiquadFilter()
+      bass.type = 'lowshelf'
+      bass.frequency.value = 200
+      
+      const mid = audioContextRef.current.createBiquadFilter()
+      mid.type = 'peaking'
+      mid.frequency.value = 1000
+      mid.Q.value = 1
+      
+      const treble = audioContextRef.current.createBiquadFilter()
+      treble.type = 'highshelf'
+      treble.frequency.value = 3000
+      
+      filterNodesRef.current = [bass, mid, treble]
+      
+      // Connect filters
+      bass.connect(mid)
+      mid.connect(treble)
+      treble.connect(gainNodeRef.current)
+    }
+  }, [])
+
+  // Apply EQ preset
+  useEffect(() => {
+    const preset = EQ_PRESETS[eqPreset]
+    if (filterNodesRef.current[0]) {
+      filterNodesRef.current[0].gain.value = preset.bass
+      filterNodesRef.current[1].gain.value = preset.mid
+      filterNodesRef.current[2].gain.value = preset.treble
+    }
+  }, [eqPreset])
+
+  // Apply volume boost
+  useEffect(() => {
+    if (gainNodeRef.current) {
+      const boost = volumeBoost ? 1.5 : 1.0 // 150% max volume
+      gainNodeRef.current.gain.value = (fineVolume / 100) * boost
+    }
+    onVolumeChange(fineVolume)
+  }, [fineVolume, volumeBoost, onVolumeChange])
 
   const toggleFavorite = () => {
     const favorites = JSON.parse(localStorage.getItem('favorites') || '[]')
@@ -106,23 +172,26 @@ export default function Player({
         <button className="header-btn" onClick={onClose}>
           <HiChevronDown />
         </button>
-        <span className="now-playing">Now Playing</span>
+        <span className="now-playing">WRLD PLAYER</span>
         <button className="header-btn" onClick={onOpenQueue}>
           <HiQueueList />
           {queueLength > 0 && <span className="queue-badge">{queueLength}</span>}
         </button>
       </div>
 
-      {/* Album Art */}
-      <div className={`album-art-container ${isPlaying && hasAudio ? 'playing' : ''}`}>
-        <CoverImage 
-          src={song.coverArt}
-          alt={song.title}
-          size="xlarge"
-          className="player-album-art"
-        />
+      {/* Centered Album Art */}
+      <div className={`album-art-wrapper ${isPlaying && hasAudio ? 'playing' : ''}`}>
+        <div className="album-art-glow"></div>
+        <div className="album-art-container">
+          <CoverImage 
+            src={song.coverArt}
+            alt={song.title}
+            size="xlarge"
+            className="player-album-art"
+          />
+        </div>
         {!hasAudio && (
-          <div className="no-audio-badge">No Audio Available</div>
+          <div className="no-audio-badge">NO AUDIO</div>
         )}
       </div>
 
@@ -130,8 +199,8 @@ export default function Player({
       <div className="song-details">
         <div className="song-title-row">
           <div className="song-text">
-            <h2>{song.title}</h2>
-            <p>{song.artist} {song.album && `• ${song.album}`}</p>
+            <h2 className="song-title-text">{song.title}</h2>
+            <p className="song-artist-text">{song.artist} {song.album && `• ${song.album}`}</p>
           </div>
           <button 
             className={`favorite-btn ${isFavorite ? 'active' : ''}`}
@@ -144,7 +213,7 @@ export default function Player({
 
       {/* Progress Bar */}
       <div className="progress-section">
-        <div className="progress-bar" onClick={handleProgressClick}>
+        <div className="progress-bar-container" onClick={handleProgressClick}>
           <div className="progress-bg"></div>
           <div className="progress-fill" style={{ width: `${progress}%` }}></div>
           <div className="progress-handle" style={{ left: `${progress}%` }}></div>
@@ -201,27 +270,49 @@ export default function Player({
         </button>
       </div>
 
-      {/* Volume & Lyrics Toggle */}
+      {/* Volume & Extra Controls */}
       <div className="extra-controls">
-        <div className="volume-control">
+        <div className="volume-section">
           <button 
-            className="volume-btn"
+            className="control-icon-btn"
             onClick={() => setShowVolume(!showVolume)}
           >
-            {volume === 0 ? <FiVolumeX /> : <FiVolume2 />}
+            <HiVolumeUp />
           </button>
+          
           {showVolume && (
-            <div className="volume-slider-popup">
+            <div className="volume-popup">
+              <div className="volume-header">
+                <span>Volume</span>
+                <label className="boost-toggle">
+                  <input 
+                    type="checkbox" 
+                    checked={volumeBoost}
+                    onChange={(e) => setVolumeBoost(e.target.checked)}
+                  />
+                  <span>BOOST (150%)</span>
+                </label>
+              </div>
               <input 
                 type="range" 
                 min="0" 
-                max="100" 
-                value={volume}
-                onChange={(e) => onVolumeChange(Number(e.target.value))}
+                max={volumeBoost ? 150 : 100}
+                value={fineVolume}
+                onChange={(e) => setFineVolume(Number(e.target.value))}
+                className="volume-slider"
               />
+              <div className="volume-value">{Math.round(fineVolume)}%</div>
             </div>
           )}
         </div>
+
+        <button 
+          className={`control-icon-btn ${showEQ ? 'active' : ''}`}
+          onClick={() => setShowEQ(!showEQ)}
+          title="Equalizer"
+        >
+          <HiCog />
+        </button>
         
         {hasLyrics && (
           <button 
@@ -232,6 +323,38 @@ export default function Player({
           </button>
         )}
       </div>
+
+      {/* EQ Panel */}
+      {showEQ && (
+        <div className="eq-panel">
+          <h4>Equalizer</h4>
+          <div className="eq-presets">
+            {Object.keys(EQ_PRESETS).map((preset) => (
+              <button
+                key={preset}
+                className={`eq-preset-btn ${eqPreset === preset ? 'active' : ''}`}
+                onClick={() => setEqPreset(preset as keyof typeof EQ_PRESETS)}
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
+          <div className="eq-visual">
+            {Object.entries(EQ_PRESETS[eqPreset]).map(([band, value]) => (
+              <div key={band} className="eq-band">
+                <span className="eq-label">{band}</span>
+                <div className="eq-bar-container">
+                  <div 
+                    className="eq-bar" 
+                    style={{ height: `${50 + value * 2}%` }}
+                  ></div>
+                </div>
+                <span className="eq-value">{value > 0 ? `+${value}` : value}dB</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Lyrics Panel */}
       {showLyrics && hasLyrics && (

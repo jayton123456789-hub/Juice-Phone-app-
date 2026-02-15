@@ -6,18 +6,22 @@ const STORAGE_KEY = 'juicephone_user'
 export function useUser() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isReady, setIsReady] = useState(false)
 
   // Load user from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
       try {
-        setUser(JSON.parse(stored))
+        const parsed = JSON.parse(stored)
+        setUser(parsed)
       } catch (e) {
         console.error('Failed to parse user:', e)
+        localStorage.removeItem(STORAGE_KEY)
       }
     }
     setIsLoading(false)
+    setIsReady(true)
   }, [])
 
   // Quick sign up - no email needed
@@ -31,6 +35,8 @@ export function useUser() {
     
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser))
     setUser(newUser)
+    // Force a reload to ensure all components pick up the new user
+    window.location.reload()
     return newUser
   }, [])
 
@@ -53,24 +59,18 @@ export function useUser() {
   const signOut = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
     setUser(null)
+    window.location.reload()
   }, [])
-
-  // Check if username is taken (simple local check)
-  const isUsernameTaken = useCallback((username: string): boolean => {
-    // In a real app, this would check against a server
-    // For now, we just check if current user has this username
-    return user?.username === username.toLowerCase().trim()
-  }, [user])
 
   return {
     user,
     isLoading,
+    isReady,
     isAuthenticated: !!user,
     signUp,
     updateProfile,
     updateAvatar,
-    signOut,
-    isUsernameTaken
+    signOut
   }
 }
 

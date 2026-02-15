@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { HiPlay, HiFire, HiClock } from 'react-icons/hi'
+import { HiPlay, HiFire, HiClock, HiChevronRight } from 'react-icons/hi'
 import { juiceApi } from '../api/juiceApi'
 import CoverImage from '../components/CoverImage'
 import { Song, User } from '../types'
@@ -15,7 +15,8 @@ interface HomeProps {
 
 export default function Home({ onSongSelect, onRadioPlay, onProfileClick, onSongsLoaded, user }: HomeProps) {
   const [songs, setSongs] = useState<Song[]>([])
-  const [, setPopularSongs] = useState<Song[]>([])
+  const [displayedSongs, setDisplayedSongs] = useState<Song[]>([])
+  const [showAllSongs, setShowAllSongs] = useState(false)
   const [recentlyPlayed, setRecentlyPlayed] = useState<Song[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<any>(null)
@@ -29,20 +30,22 @@ export default function Home({ onSongSelect, onRadioPlay, onProfileClick, onSong
   const loadData = async () => {
     try {
       setLoading(true)
-      // Load released songs
-      const result = await juiceApi.getSongs(1, 20, 'released')
+      // Get random page for variety on each launch
+      const randomPage = Math.floor(Math.random() * 10) + 1
+      const result = await juiceApi.getSongs(randomPage, 50, 'released')
       console.log('Loaded songs:', result.songs.length, 'Total:', result.count)
-      setSongs(result.songs)
-      onSongsLoaded(result.songs)
       
-      // Load some popular/unreleased too
-      const popular = await juiceApi.getSongs(1, 10)
-      setPopularSongs(popular.songs.slice(0, 10))
+      // Shuffle the songs for variety
+      const shuffled = [...result.songs].sort(() => Math.random() - 0.5)
+      
+      setSongs(shuffled)
+      setDisplayedSongs(shuffled.slice(0, 15))
+      onSongsLoaded(shuffled)
     } catch (err) {
       console.error('Failed to load songs:', err)
       const mock = getMockSongs()
       setSongs(mock)
-      setPopularSongs(mock)
+      setDisplayedSongs(mock)
       onSongsLoaded(mock)
     } finally {
       setLoading(false)
@@ -65,12 +68,60 @@ export default function Home({ onSongSelect, onRadioPlay, onProfileClick, onSong
     }
   }
 
+  const handleSeeAll = () => {
+    setShowAllSongs(!showAllSongs)
+    if (!showAllSongs) {
+      setDisplayedSongs(songs)
+    } else {
+      setDisplayedSongs(songs.slice(0, 15))
+    }
+  }
+
+  if (showAllSongs) {
+    return (
+      <div className="page home">
+        <div className="section-header all-songs-header">
+          <button className="back-btn" onClick={handleSeeAll}>
+            ← Back
+          </button>
+          <h2>All Released Songs ({songs.length})</h2>
+        </div>
+        <div className="song-list all-songs">
+          {songs.map((song, index) => (
+            <div 
+              key={song.id} 
+              className="song-item"
+              onClick={() => onSongSelect(song)}
+            >
+              <span className="song-number">{index + 1}</span>
+              <CoverImage 
+                src={song.coverArt}
+                alt={song.title}
+                size="small"
+              />
+              <div className="song-info">
+                <h4>{song.title}</h4>
+                <p>{song.artist} • {song.album}</p>
+              </div>
+              <button className="play-btn-round" onClick={(e) => {
+                e.stopPropagation()
+                onSongSelect(song)
+              }}>
+                <HiPlay />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="page home">
       <div className="home-header">
         <div className="greeting">
-          <h1>Good Evening</h1>
-          <p>{user?.displayName ? `Welcome back, ${user.displayName}` : "Let's vibe to some Juice"}</p>
+          <h1>WRLD</h1>
+          <p>{user?.displayName ? `Welcome back, ${user.displayName}` : "40,000+ songs await"}</p>
         </div>
         <div className="profile-avatar" onClick={onProfileClick}>
           <img 
@@ -117,14 +168,17 @@ export default function Home({ onSongSelect, onRadioPlay, onProfileClick, onSong
       <div className="section">
         <div className="section-header">
           <h2>Released Songs</h2>
-          <button className="see-all" onClick={() => {}}>See all</button>
+          <button className="see-all-btn" onClick={handleSeeAll}>
+            {showAllSongs ? 'Show Less' : 'See All'}
+            <HiChevronRight />
+          </button>
         </div>
         
         {loading ? (
           <div className="loading">Loading songs...</div>
         ) : (
           <div className="song-list">
-            {songs.slice(0, 15).map((song, index) => (
+            {displayedSongs.map((song, index) => (
               <div 
                 key={song.id} 
                 className="song-item"
@@ -140,7 +194,7 @@ export default function Home({ onSongSelect, onRadioPlay, onProfileClick, onSong
                   <h4>{song.title}</h4>
                   <p>{song.artist} • {song.album}</p>
                 </div>
-                <button className="play-btn" onClick={(e) => {
+                <button className="play-btn-round" onClick={(e) => {
                   e.stopPropagation()
                   onSongSelect(song)
                 }}>
@@ -208,5 +262,7 @@ function getMockSongs(): Song[] {
     { id: '4', title: 'Robbery', artist: 'Juice WRLD', album: 'Death Race for Love', duration: 240, hasLyrics: true },
     { id: '5', title: 'Hear Me Calling', artist: 'Juice WRLD', album: 'Death Race for Love', duration: 195, hasLyrics: true },
     { id: '6', title: 'Bandit', artist: 'Juice WRLD ft. NBA YoungBoy', album: 'Single', duration: 189, hasLyrics: true },
+    { id: '7', title: 'Wasted', artist: 'Juice WRLD ft. Lil Uzi Vert', album: 'Goodbye & Good Riddance', duration: 221, hasLyrics: true },
+    { id: '8', title: 'Lean Wit Me', artist: 'Juice WRLD', album: 'Goodbye & Good Riddance', duration: 178, hasLyrics: true },
   ]
 }

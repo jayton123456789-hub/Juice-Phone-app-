@@ -1,10 +1,10 @@
 {
-  "name": "juice-phone-app",
+  "name": "wrld",
   "private": true,
   "version": "0.0.1",
   "type": "module",
   "author": "Jayton",
-  "description": "Juice WRLD Music Player Desktop App",
+  "description": "WRLD - Juice WRLD Music Player",
   "main": "dist-electron/main.cjs",
   "scripts": {
     "dev": "npm run build:electron && electron .",
@@ -34,7 +34,7 @@
   },
   "build": {
     "appId": "com.juice.phoneapp",
-    "productName": "Juice Phone",
+    "productName": "WRLD",
     "directories": {
       "output": "release"
     },
@@ -47,7 +47,7 @@
       "signAndEditExecutable": false
     },
     "portable": {
-      "artifactName": "Juice Phone.exe"
+      "artifactName": "WRLD.exe"
     }
   }
 }

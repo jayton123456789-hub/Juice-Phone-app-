@@ -9,6 +9,7 @@ import Auth from './pages/Auth'
 import Profile from './pages/Profile'
 import MiniPlayer from './components/MiniPlayer'
 import QueuePanel from './components/QueuePanel'
+import SplashScreen from './components/SplashScreen'
 import { useAudioPlayer } from './hooks/useAudioPlayer'
 import { useUser } from './hooks/useUser'
 import { checkStorageVersion } from './utils/storage'
@@ -23,6 +24,7 @@ function App() {
   const [showProfile, setShowProfile] = useState(false)
   const [showQueue, setShowQueue] = useState(false)
   const [allSongs, setAllSongs] = useState<Song[]>([])
+  const [isStarting, setIsStarting] = useState(true)
   
   const { user, isLoading, isAuthenticated } = useUser()
   const {
@@ -43,22 +45,19 @@ function App() {
     removeFromQueue
   } = useAudioPlayer()
 
+  // Splash screen timer
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsStarting(false)
+    }, 3500)
+    return () => clearTimeout(timer)
+  }, [])
+
   // Prevent right-click context menu (mobile-like behavior)
   useEffect(() => {
     const handler = (e: MouseEvent) => e.preventDefault()
     document.addEventListener('contextmenu', handler)
     return () => document.removeEventListener('contextmenu', handler)
-  }, [])
-
-  // Prevent spacebar from scrolling
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && e.target === document.body) {
-        e.preventDefault()
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
   }, [])
 
   // Keyboard shortcuts
@@ -126,8 +125,18 @@ function App() {
   }
 
   const handleQueueSongSelect = (index: number) => {
-    // This would need to be implemented in the hook
     console.log('Select queue item:', index)
+  }
+
+  // Show splash screen
+  if (isStarting) {
+    return (
+      <div className="app">
+        <div className="phone-frame">
+          <SplashScreen />
+        </div>
+      </div>
+    )
   }
 
   // Show auth screen if not authenticated
@@ -159,6 +168,15 @@ function App() {
   return (
     <div className="app">
       <div className="phone-frame">
+        {/* Draggable title bar */}
+        <div className="title-bar">
+          <div className="title-bar-text">WRLD</div>
+          <div className="window-controls">
+            <button className="win-btn minimize" onClick={() => window.electronAPI?.minimize?.()}>−</button>
+            <button className="win-btn close" onClick={() => window.electronAPI?.close?.() || window.close()}>×</button>
+          </div>
+        </div>
+
         <div className="status-bar">
           <span className="time">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           <div className="notch"></div>
@@ -241,12 +259,6 @@ function App() {
           onClearQueue={() => setQueue([], -1)}
           onRemoveSong={removeFromQueue}
         />
-
-        {/* Window controls for desktop */}
-        <div className="window-controls">
-          <button className="win-btn minimize" onClick={() => window.electronAPI?.minimize?.()}>−</button>
-          <button className="win-btn close" onClick={() => window.electronAPI?.close?.() || window.close()}>×</button>
-        </div>
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 // Centralized storage management with versioning and clearing
 
-const STORAGE_VERSION = '3.0'
+const STORAGE_VERSION = '4.0'
 const VERSION_KEY = 'juicephone_version'
 
 export const StorageKeys = {

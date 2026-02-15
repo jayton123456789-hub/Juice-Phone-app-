@@ -27,19 +27,6 @@ const getCoverArtUrl = (path?: string): string => {
   return `${API_BASE}/files/cover-art/?path=${encodeURIComponent(path)}`
 }
 
-// Check if URL exists (HEAD request)
-const checkUrlExists = async (url: string): Promise<boolean> => {
-  try {
-    const response = await fetch(url, { 
-      method: 'HEAD',
-      mode: 'no-cors' // Allow cross-origin checks
-    })
-    return response.ok || response.status === 0 // status 0 from no-cors means it loaded
-  } catch (e) {
-    return false
-  }
-}
-
 // Transform API response to our Song type
 const transformSong = (data: any): Song => {
   const path = data.path || data.song?.path || data.file_path
