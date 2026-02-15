@@ -10,9 +10,8 @@ const configPath = path.join(os.homedir(), '.wrld-app-config.json')
 
 // Default config
 const defaultConfig = {
-  desktopMode: false,
+  desktopMode: true,
   windowBounds: {
-    phone: { width: 390, height: 844 },
     desktop: { width: 1200, height: 800 }
   }
 }
@@ -22,7 +21,8 @@ function readConfig() {
   try {
     if (fs.existsSync(configPath)) {
       const data = fs.readFileSync(configPath, 'utf8')
-      return { ...defaultConfig, ...JSON.parse(data) }
+      const config = { ...defaultConfig, ...JSON.parse(data) }
+      return { ...config, desktopMode: true }
     }
   } catch (e) {
     console.error('Failed to read config:', e)
@@ -30,33 +30,23 @@ function readConfig() {
   return defaultConfig
 }
 
-// Write config
-function writeConfig(config: any) {
-  try {
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2))
-  } catch (e) {
-    console.error('Failed to write config:', e)
-  }
-}
-
 let mainWindow: typeof BrowserWindow | null = null
 
 function createWindow() {
   const config = readConfig()
-  const isDesktop = config.desktopMode
-  const bounds = isDesktop ? config.windowBounds.desktop : config.windowBounds.phone
+  const bounds = config.windowBounds.desktop
 
   mainWindow = new BrowserWindow({
     width: bounds.width,
     height: bounds.height,
-    minWidth: isDesktop ? 900 : 390,
-    minHeight: isDesktop ? 600 : 600,
-    resizable: isDesktop, // Only resizable in desktop mode
-    maximizable: isDesktop,
-    fullscreenable: isDesktop,
+    minWidth: 900,
+    minHeight: 600,
+    resizable: true,
+    maximizable: true,
+    fullscreenable: true,
     frame: false,
     transparent: true,
-    roundedCorners: !isDesktop, // Rounded corners only in phone mode
+    roundedCorners: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -73,10 +63,8 @@ function createWindow() {
   // Center the window on screen
   mainWindow.center()
 
-  // In desktop mode, maximize by default
-  if (isDesktop) {
-    mainWindow.maximize()
-  }
+  // Desktop mode is the only supported mode
+  mainWindow.maximize()
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173')
@@ -105,44 +93,7 @@ app.whenReady().then(() => {
     if (win) win.close()
   })
 
-  // IPC handler for setting desktop mode
-  ipcMain.on('set-desktop-mode', (_event: any, enabled: boolean) => {
-    const config = readConfig()
-    config.desktopMode = enabled
-    writeConfig(config)
-  })
-
-  // IPC handler to get current mode
-  ipcMain.handle('get-desktop-mode', () => {
-    const config = readConfig()
-    return config.desktopMode
-  })
-
-  // IPC handler to resize window for mode switch
-  ipcMain.on('resize-for-mode', (_event: any, isDesktop: boolean) => {
-    if (!mainWindow) return
-    
-    const config = readConfig()
-    const bounds = isDesktop ? config.windowBounds.desktop : config.windowBounds.phone
-    
-    if (isDesktop) {
-      // Enable resizing and maximize
-      mainWindow.setResizable(true)
-      mainWindow.setMaximizable(true)
-      mainWindow.setFullScreenable(true)
-      // setRoundedCorners not available in this Electron version
-      mainWindow.maximize()
-    } else {
-      // Disable resizing and set phone size
-      mainWindow.setResizable(false)
-      mainWindow.setMaximizable(false)
-      mainWindow.setFullScreenable(false)
-      // setRoundedCorners not available in this Electron version
-      mainWindow.unmaximize()
-      mainWindow.setSize(bounds.width, bounds.height)
-      mainWindow.center()
-    }
-  })
+  ipcMain.handle('get-desktop-mode', () => true)
 })
 
 app.on('window-all-closed', () => {

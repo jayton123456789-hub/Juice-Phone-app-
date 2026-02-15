@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { User } from '../types'
 
-const STORAGE_KEY = 'juicephone_user'
-
+const STORAGE_KEY = 'wrld_user'
 export function useUser() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -15,6 +14,7 @@ export function useUser() {
       try {
         const parsed = JSON.parse(stored)
         setUser(parsed)
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed))
       } catch (e) {
         console.error('Failed to parse user:', e)
         localStorage.removeItem(STORAGE_KEY)
@@ -32,7 +32,7 @@ export function useUser() {
       displayName: displayName?.trim() || username.trim(),
       createdAt: Date.now()
     }
-    
+
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser))
     setUser(newUser)
     // Force a reload to ensure all components pick up the new user
@@ -69,6 +69,7 @@ export function useUser() {
       try {
         const parsed = JSON.parse(stored)
         setUser(parsed)
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed))
       } catch (e) {
         console.error('Failed to parse user:', e)
         setUser(null)

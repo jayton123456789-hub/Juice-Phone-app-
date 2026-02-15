@@ -1,10 +1,10 @@
 // Centralized storage management with versioning and clearing
 
 const STORAGE_VERSION = '5.0'
-const VERSION_KEY = 'juicephone_version'
+const VERSION_KEY = 'wrld_version'
 
 export const StorageKeys = {
-  USER: 'juicephone_user',
+  USER: 'wrld_user',
   FAVORITES: 'favorites',
   RECENTLY_PLAYED: 'recentlyPlayed',
   QUEUE: 'queue',
