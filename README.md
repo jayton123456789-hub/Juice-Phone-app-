@@ -45,7 +45,7 @@ WRLD is designed to feel smooth, modern, and immersive while keeping Juice WRLDâ
 
 ### UI + Layout
 - Desktop-focused layout with sidebar, top search, and persistent bottom player.
-- Mobile-style mode is also present in the app logic for smaller viewport behavior.
+- Desktop layout is the only supported runtime experience.
 
 ---
 
