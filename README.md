@@ -1,44 +1,59 @@
-# 🧃 Juice Phone App
+# WRLD 🎧
 
-A desktop app that looks and feels like a mobile music player for Juice WRLD.
+WRLD is a Juice WRLD desktop music app you can run on Windows.
 
-## Features
+## What you get
 
-- 🎵 Music player with full controls
-- 📱 Mobile-like UI running as desktop EXE
-- 🔍 Search songs, albums, artists
-- ❤️ Favorites & Recently played
-- 🎤 Lyrics display
-- 💿 Spinning vinyl animation
-- 🌙 Dark theme with neon accents
+- Juice WRLD-focused music player
+- Home, Discover, Search, Library, Radio, Settings
+- Favorites + recently played
+- Queue controls
+- MilkDrop visualizer
+- 5-band EQ + presets
+- Custom keyboard shortcuts
 
-## Tech Stack
+## Easiest way to download
 
-- React + TypeScript
-- Vite
-- Electron (for EXE)
-- Juice WRLD API
+Go to **GitHub Releases** and download either:
+- `WRLD.exe` (portable app)
+- `WRLD-<version>-portable.zip` (zip version)
 
-## Development
+Then:
+1. Download
+2. Extract if needed
+3. Double-click `WRLD.exe`
+
+That’s it.
+
+## Run in development
 
 ```bash
-# Install dependencies
 npm install
-
-# Run in development mode
 npm run dev
+```
 
-# Build EXE for Windows
+## Build Windows EXE locally
+
+```bash
 npm run dist:win
 ```
 
-## Project Structure
+Output goes to `release/`.
 
-```
-src/
-├── api/        # API calls to Juice WRLD API
-├── components/ # Reusable components
-├── pages/      # Main pages (Home, Search, Library, Player)
-├── types/      # TypeScript types
-└── hooks/      # Custom React hooks
-```
+## Scripts
+
+- `npm run dev` - run app in dev mode
+- `npm run build` - build renderer
+- `npm run build:electron` - build Electron process
+- `npm run dist` - full package
+- `npm run dist:win` - Windows package
+
+## Version / releases
+
+- Current app version is in `package.json`.
+- Create a git tag like `v0.0.1` to publish a release.
+- This repo now includes a GitHub Action that builds and attaches `WRLD.exe` and ZIP to the Release automatically when you push a version tag.
+
+## Author
+
+Built by **Jayton**.

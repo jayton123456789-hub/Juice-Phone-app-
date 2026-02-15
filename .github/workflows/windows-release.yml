@@ -1,0 +1,51 @@
+name: Build Windows Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build portable EXE
+        run: npm run dist:win
+
+      - name: Prepare ZIP artifact
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $exePath = "release/WRLD.exe"
+
+          if (!(Test-Path $exePath)) {
+            throw "Expected EXE not found at $exePath"
+          }
+
+          $zipPath = "release/WRLD-$tag-portable.zip"
+          Compress-Archive -Path $exePath -DestinationPath $zipPath -Force
+
+      - name: Publish GitHub Release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            release/WRLD.exe
+            release/WRLD-*.zip
