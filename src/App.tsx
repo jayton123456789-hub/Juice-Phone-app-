@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { HiHome, HiSearch, HiHeart } from 'react-icons/hi'
+import { HiHome, HiSearch, HiHeart, HiRadio } from 'react-icons/hi'
+import { HiSparkles } from 'react-icons/hi2'
 import Home from './pages/Home'
 import Search from './pages/Search'
 import Library from './pages/Library'
+import Radio from './pages/Radio'
+import Discover from './pages/Discover'
 import Player from './pages/Player'
 import Auth from './pages/Auth'
 import Profile from './pages/Profile'
@@ -35,12 +38,14 @@ function App() {
     currentTime,
     duration,
     volume,
+    volumeBoost,
     playSongWithQueue,
     togglePlay,
     playNext,
     playPrevious,
     seek,
     setAudioVolume,
+    toggleVolumeBoost,
     setQueue,
     removeFromQueue
   } = useAudioPlayer()
@@ -196,6 +201,7 @@ function App() {
               currentTime={currentTime}
               duration={duration}
               volume={volume}
+              volumeBoost={volumeBoost}
               queueLength={queue.length}
               hasNext={currentIndex < queue.length - 1}
               hasPrevious={currentIndex > 0}
@@ -204,6 +210,7 @@ function App() {
               onPrevious={playPrevious}
               onSeek={seek}
               onVolumeChange={setAudioVolume}
+              onToggleVolumeBoost={toggleVolumeBoost}
               onClose={handleClosePlayer}
               onOpenQueue={() => setShowQueue(true)}
             />
@@ -219,19 +226,27 @@ function App() {
                     user={user}
                   />
                 } />
+                <Route path="/radio" element={
+                  <Radio onSongSelect={handleSongSelect} />
+                } />
                 <Route path="/search" element={
                   <Search onSongSelect={handleSongSelect} />
                 } />
                 <Route path="/library" element={
                   <Library onSongSelect={handleSongSelect} />
                 } />
+                <Route path="/discover" element={
+                  <Discover onSongSelect={handleSongSelect} />
+                } />
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
               
               <nav className="bottom-nav">
                 <NavItem to="/" icon={<HiHome />} label="Home" />
+                <NavItem to="/radio" icon={<HiRadio />} label="Radio" />
                 <NavItem to="/search" icon={<HiSearch />} label="Search" />
                 <NavItem to="/library" icon={<HiHeart />} label="Library" />
+                <NavItem to="/discover" icon={<HiSparkles />} label="Discover" />
               </nav>
             </Router>
           )}

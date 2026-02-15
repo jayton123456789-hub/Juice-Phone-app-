@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { 
   HiChevronDown, HiPlay, HiPause, HiHeart,
-  HiQueueList, HiVolumeUp, HiCog
+  HiQueueList, HiCog
 } from 'react-icons/hi2'
+import { FiVolume2 } from 'react-icons/fi'
 import { FiShuffle, FiRepeat, FiSkipBack, FiSkipForward } from 'react-icons/fi'
 import CoverImage from '../components/CoverImage'
 import { Song } from '../types'
@@ -14,6 +15,7 @@ interface PlayerProps {
   currentTime: number
   duration: number
   volume: number
+  volumeBoost: boolean
   queueLength: number
   hasNext: boolean
   hasPrevious: boolean
@@ -22,6 +24,7 @@ interface PlayerProps {
   onPrevious: () => void
   onSeek: (time: number) => void
   onVolumeChange: (volume: number) => void
+  onToggleVolumeBoost: () => void
   onClose: () => void
   onOpenQueue: () => void
 }
@@ -40,6 +43,7 @@ export default function Player({
   currentTime,
   duration,
   volume,
+  volumeBoost,
   queueLength,
   hasNext,
   hasPrevious,
@@ -48,6 +52,7 @@ export default function Player({
   onPrevious,
   onSeek,
   onVolumeChange,
+  onToggleVolumeBoost,
   onClose,
   onOpenQueue
 }: PlayerProps) {
@@ -57,13 +62,8 @@ export default function Player({
   const [isRepeat, setIsRepeat] = useState(false)
   const [showVolume, setShowVolume] = useState(false)
   const [showEQ, setShowEQ] = useState(false)
-  const [volumeBoost, setVolumeBoost] = useState(false)
   const [eqPreset, setEqPreset] = useState<keyof typeof EQ_PRESETS>('Flat')
   const [fineVolume, setFineVolume] = useState(volume)
-  
-  const audioContextRef = useRef<AudioContext | null>(null)
-  const gainNodeRef = useRef<GainNode | null>(null)
-  const filterNodesRef = useRef<BiquadFilterNode[]>([])
 
   // Check if favorite
   useEffect(() => {
@@ -277,7 +277,7 @@ export default function Player({
             className="control-icon-btn"
             onClick={() => setShowVolume(!showVolume)}
           >
-            <HiVolumeUp />
+            <FiVolume2 />
           </button>
           
           {showVolume && (
@@ -288,7 +288,7 @@ export default function Player({
                   <input 
                     type="checkbox" 
                     checked={volumeBoost}
-                    onChange={(e) => setVolumeBoost(e.target.checked)}
+                    onChange={onToggleVolumeBoost}
                   />
                   <span>BOOST (150%)</span>
                 </label>

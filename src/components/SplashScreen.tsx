@@ -39,7 +39,7 @@ export default function SplashScreen() {
     <div className="splash-screen">
       {/* Background */}
       <div className="splash-bg">
-        <img src="assets/Splash screen.png" alt="" />
+        <img src="./assets/Splash screen.png" alt="" />
       </div>
       
       {/* Overlay gradient */}
@@ -49,7 +49,7 @@ export default function SplashScreen() {
       <div className="splash-content">
         {/* Logo */}
         <div className="splash-logo">
-          <img src="assets/LOGO.png" alt="WRLD" />
+          <img src="./assets/LOGO.png" alt="WRLD" />
         </div>
         
         {/* Loading Section */}
