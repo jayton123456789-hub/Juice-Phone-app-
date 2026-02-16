@@ -40,3 +40,16 @@ coverage
 
 # Electron
 out/
+
+# Scanner outputs
+Scanner/data/**
+!Scanner/data/raw/
+!Scanner/data/enriched/
+!Scanner/data/exports/
+!Scanner/data/checkpoints/
+!Scanner/data/logs/
+!.gitkeep
+
+# Python
+__pycache__/
+*.pyc
